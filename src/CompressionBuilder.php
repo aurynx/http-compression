@@ -6,7 +6,6 @@ namespace Ayrunx\HttpCompression;
 
 use ArrayIterator;
 use Countable;
-use Exception;
 use IteratorAggregate;
 use JsonException;
 use Traversable;
@@ -342,13 +341,19 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * Note: Empty arrays are not allowed.
      *
      * @internal Used by CompressionItemConfigurator
-     * @throws CompressionException if an empty array is provided
+     * @throws CompressionException if item not found or an empty array is provided
      * @throws JsonException
      */
     public function updateAlgorithms(
         string $identifier,
         CompressionAlgorithmEnum|iterable|null $algorithms
     ): void {
+        if (!isset($this->items[$identifier])) {
+            throw new CompressionException(
+                sprintf('Item with identifier "%s" not found', $identifier),
+                CompressionErrorCode::ITEM_NOT_FOUND->value
+            );
+        }
         $this->algorithms[$identifier] = $this->resolveAlgorithms($algorithms);
     }
 
@@ -481,7 +486,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param CompressionItem $item
      *
      * @return CompressionResult
-     * @throws CompressionException|Exception if failFast is true and any algorithm fails
+     * @throws CompressionException if failFast is true and any algorithm fails
      */
     private function compressItem(string $identifier, CompressionItem $item): CompressionResult
     {
