@@ -7,7 +7,6 @@ namespace Ayrunx\HttpCompression;
 use ArrayIterator;
 use Countable;
 use IteratorAggregate;
-use JsonException;
 use Traversable;
 use ValueError;
 
@@ -47,7 +46,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  string|null  $customIdentifier  Optional custom identifier for the item
      *
      * @return self
-     * @throws JsonException
      */
     public function add(
         string $content,
@@ -78,7 +76,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  string|null  $customIdentifier  Optional custom identifier for the item
      *
      * @return self
-     * @throws JsonException
      */
     public function addFile(
         string $filePath,
@@ -128,7 +125,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  CompressionAlgorithmEnum|iterable|null  $defaultAlgorithms
      *
      * @return self
-     * @throws JsonException
      */
     public function addMany(
         iterable $payloads,
@@ -164,7 +160,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  CompressionAlgorithmEnum|iterable|null  $defaultAlgorithms
      *
      * @return self
-     * @throws JsonException
      */
     public function addManyFiles(
         iterable $payloads,
@@ -212,7 +207,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  CompressionAlgorithmEnum|iterable|null  $algorithms
      *
      * @return self
-     * @throws JsonException
      */
     public function withDefaultAlgorithms(
         CompressionAlgorithmEnum|iterable|null $algorithms
@@ -273,7 +267,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      *
      * @return self
      * @throws CompressionException if item not found or algorithms invalid
-     * @throws JsonException
      */
     public function replaceAlgorithms(
         string $identifier,
@@ -342,7 +335,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      *
      * @internal Used by CompressionItemConfigurator
      * @throws CompressionException if item not found or an empty array is provided
-     * @throws JsonException
      */
     public function updateAlgorithms(
         string $identifier,
@@ -664,7 +656,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  CompressionAlgorithmEnum|iterable|null  $algorithms
      *
      * @return array<string, int>
-     * @throws JsonException
      */
     private function resolveAlgorithms(
         CompressionAlgorithmEnum|iterable|null $algorithms
@@ -701,7 +692,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  CompressionAlgorithmEnum|iterable|null  $algorithms
      *
      * @return array<string, int>
-     * @throws JsonException
      */
     private function normalizeAlgorithms(
         CompressionAlgorithmEnum|iterable|null $algorithms
@@ -764,11 +754,27 @@ final class CompressionBuilder implements Countable, IteratorAggregate
                 $normalized[$algorithm->value] = $level;
             } catch (ValueError $e) {
                 // Extract the actual problematic value for better error messages
-                $rawValue = is_string($key) ? $key : (is_string($value) ? $value : json_encode([$key, $value]));
+                // Wrapped json_encode to avoid leaking JsonException
+                try {
+                    $rawValue = is_string($key) ? $key : (is_string($value) ? $value : json_encode([$key, $value], JSON_THROW_ON_ERROR));
+                } catch (\JsonException $je) {
+                    throw new CompressionException(
+                        'Invalid algorithm specification (json encode failed)',
+                        CompressionErrorCode::INVALID_ALGORITHM_SPEC->value,
+                        $je
+                    );
+                }
                 throw new CompressionException(
                     sprintf('Unknown algorithm: %s', $rawValue),
                     CompressionErrorCode::UNKNOWN_ALGORITHM->value,
                     $e
+                );
+            } catch (\JsonException $je) {
+                // Guard any unexpected JSON failures from above json_encode calls
+                throw new CompressionException(
+                    'Invalid algorithm specification (json encode failed)',
+                    CompressionErrorCode::INVALID_ALGORITHM_SPEC->value,
+                    $je
                 );
             }
         }
