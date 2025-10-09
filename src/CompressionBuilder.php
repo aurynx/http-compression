@@ -588,6 +588,16 @@ final class CompressionBuilder implements Countable, IteratorAggregate
     }
 
     /**
+     * Get item identifiers in insertion order
+     *
+     * @return list<string>
+     */
+    public function getIdentifiers(): array
+    {
+        return array_keys($this->items);
+    }
+
+    /**
      * Get the number of items in the builder
      *
      * Implements Countable interface.
