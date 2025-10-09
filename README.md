@@ -77,6 +77,24 @@ foreach ($results as $result) {
 }
 ```
 
+### For AI assistants
+
+You are a coding agent working in PHP 8.4+. Use this library to compress HTTP payloads
+(strings or files) with gzip, brotli, or zstd.
+
+**Core flow:**
+1. Create `CompressionBuilder()`. Use `graceful()` for user-facing paths, `failFast()` for build steps.
+2. Add payloads via `add()` or `addFile()`; for batches use `addMany()` / `addManyFiles()`.
+3. Choose algorithms by `Accept-Encoding` (prefer `br`, then `zstd`, then `gzip`).
+4. Call `compress()`; inspect `CompressionResult`:
+    - `isOk()` → use `getCompressed()` or `getCompressedFor()`
+    - `isPartial()` → use successes and log `getAlgorithmErrors()`
+    - `isError()` → fall back to identity
+
+**Defaults:** gzip=6, br=4, zstd=3.  
+**Static precompression:** save `.gz` / `.br` files next to original and enable `gzip_static on;` / `brotli_static on;`.
+**Guardrails:** set `maxBytes` on the builder for large data.
+
 ### Multiple Algorithms
 
 Compress the same content with multiple algorithms:

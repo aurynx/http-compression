@@ -1,0 +1,108 @@
+{
+  "name": "aurynx/http-compression",
+  "language": "php",
+  "purpose": "Efficient HTTP compression for responses and static assets.",
+  "package_id": "aurynx/http-compression",
+  "install": "composer require aurynx/http-compression",
+  "repository": "https://github.com/aurynx/http-compression",
+  "usage_modes": ["dynamic-response", "build-time-precompression"],
+  "entrypoints": [
+    {
+      "namespace": "Aurynx\\HttpCompression",
+      "class": "CompressionBuilder",
+      "summary": "Fluent builder that collects items and compresses them with gzip, brotli, zstd.",
+      "methods": [
+        { "name": "add", "params": ["string $content", "AlgorithmEnum|iterable|null $algorithms = null", "?string $customIdentifier = null"], "returns": "self" },
+        { "name": "addFile", "params": ["string $filePath", "AlgorithmEnum|iterable|null $algorithms = null", "?string $customIdentifier = null"], "returns": "self" },
+        { "name": "addMany", "params": ["iterable $payloads", "AlgorithmEnum|iterable|null $defaultAlgorithms = null"], "returns": "self" },
+        { "name": "addManyFiles", "params": ["iterable $payloads", "AlgorithmEnum|iterable|null $defaultAlgorithms = null"], "returns": "self" },
+        { "name": "withDefaultAlgorithms", "params": ["AlgorithmEnum|iterable|null $algorithms"], "returns": "self" },
+        { "name": "forItem", "params": ["string $identifier"], "returns": "ItemConfigurator" },
+        { "name": "forLast", "params": [], "returns": "ItemConfigurator" },
+        { "name": "failFast", "params": [], "returns": "self", "default": true },
+        { "name": "graceful", "params": [], "returns": "self" },
+        { "name": "compress", "params": [], "returns": "array<string, CompressionResult>" }
+      ]
+    }
+  ],
+  "enums": [
+    { "name": "AlgorithmEnum", "values": ["gzip", "br", "zstd"] }
+  ],
+  "defaults": {
+    "levels": { "gzip": 6, "br": 4, "zstd": 3 },
+    "prefer_order": ["br", "zstd", "gzip"]
+  },
+  "constraints": {
+    "php": ">=8.4",
+    "psr": ["PSR-12"],
+    "extensions": {
+      "gzip": "ext-zlib (required)",
+      "br": "ext-brotli (optional)",
+      "zstd": "ext-zstd (optional)"
+    },
+    "memory": "Use maxBytes to guard large payloads"
+  },
+  "artifacts": {
+    "examples": [
+      "examples/api-response.php",
+      "examples/precompress.php",
+      "examples/graceful-batch.php"
+    ],
+    "configs": [
+      "examples/nginx.conf",
+      "examples/apache.conf"
+    ],
+    "static_extensions": { "gzip": ".gz", "br": ".br", "zstd": ".zst" }
+  },
+  "recipes": [
+    {
+      "name": "Compress API JSON by Accept-Encoding",
+      "steps": [
+        "Parse Accept-Encoding",
+        "Pick supported algos",
+        "Add payload",
+        "Compress",
+        "Choose best available by prefer_order",
+        "Return {content, encoding}"
+      ],
+      "notes": [
+        "Use graceful() for user-facing responses",
+        "Fallback to identity if no algorithm succeeds"
+      ]
+    },
+    {
+      "name": "Precompress static files for nginx/apache",
+      "steps": [
+        "Collect asset paths",
+        "addManyFiles with {gzip:9, br:11, zstd:19}",
+        "compress",
+        "write .gz/.br/.zst next to originals",
+        "Enable gzip_static/brotli_static (nginx) or AddEncoding+Rewrite rules (Apache)"
+      ],
+      "paths": ["public/css/*.css", "public/js/*.js", "public/*.html"]
+    },
+    {
+      "name": "Batch with graceful mode",
+      "steps": [
+        "graceful()",
+        "addMany",
+        "compress",
+        "use getCompressed(); log getAlgorithmErrors()"
+      ]
+    }
+  ],
+  "non_goals": [
+    "Does not set HTTP headers automatically",
+    "Does not stream; operates on full strings/files"
+  ],
+  "safety": [
+    "Use graceful() for user-facing paths",
+    "Use maxBytes to limit memory",
+    "Check AlgorithmEnum::isAvailable() for optional algorithms in CI"
+  ],
+  "hints_for_agents": [
+    "Prefer algorithms in order br > zstd > gzip",
+    "For dynamic responses, set Content-Encoding to the chosen algorithm; otherwise use identity",
+    "For build-time precompression, use failFast() and higher levels (gzip:9, br:11, zstd:19)"
+  ]
+}
