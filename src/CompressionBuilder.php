@@ -537,19 +537,25 @@ final class CompressionBuilder implements Countable, IteratorAggregate
                 if ($this->failFast) {
                     throw $e;
                 }
-                $algorithmErrors[$algorithmValue] = $e->getMessage();
+                // In non-failFast mode, track per-algorithm error with code and message
+                $algorithmErrors[$algorithmValue] = [
+                    'code' => $e->getCode(),
+                    'message' => $e->getMessage(),
+                ];
             } catch (ValueError $e) {
                 $lastError = new CompressionException(
                     sprintf('Unknown algorithm: %s', $algorithmValue),
                     CompressionErrorCode::UNKNOWN_ALGORITHM->value,
                     $e
                 );
-
                 if ($this->failFast) {
                     throw $lastError;
                 }
-
-                $algorithmErrors[$algorithmValue] = $lastError->getMessage();
+                // Track per-algorithm error with code and message
+                $algorithmErrors[$algorithmValue] = [
+                    'code' => $lastError->getCode(),
+                    'message' => $lastError->getMessage(),
+                ];
             }
         }
 
