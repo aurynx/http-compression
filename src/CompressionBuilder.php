@@ -45,7 +45,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  CompressionAlgorithmEnum|iterable|null  $algorithms
      * @param  string|null  $customIdentifier  Optional custom identifier for the item
      *
-     * @return self
+     * @return $this
      */
     public function add(
         string $content,
@@ -75,7 +75,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  CompressionAlgorithmEnum|iterable|null  $algorithms
      * @param  string|null  $customIdentifier  Optional custom identifier for the item
      *
-     * @return self
+     * @return $this
      */
     public function addFile(
         string $filePath,
@@ -124,7 +124,9 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  iterable<array{content: string, algorithms?: CompressionAlgorithmEnum|iterable|null, identifier?: string|null}|string>  $payloads
      * @param  CompressionAlgorithmEnum|iterable|null  $defaultAlgorithms
      *
-     * @return self
+     * Note: empty iterable is not allowed and will result in CompressionException with code EMPTY_ALGORITHMS.
+     *
+     * @return $this
      */
     public function addMany(
         iterable $payloads,
@@ -159,7 +161,9 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  iterable<array{path: string, algorithms?: CompressionAlgorithmEnum|iterable|null, identifier?: string|null}|string>  $payloads
      * @param  CompressionAlgorithmEnum|iterable|null  $defaultAlgorithms
      *
-     * @return self
+     * Note: empty iterable is not allowed and will result in CompressionException with code EMPTY_ALGORITHMS.
+     *
+     * @return $this
      */
     public function addManyFiles(
         iterable $payloads,
@@ -202,11 +206,11 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * Set default algorithms for all subsequently added items
      *
      * Pass null to clear defaults.
-     * Note: Empty arrays are not allowed and will throw CompressionException.
+     * Note: Empty iterable is not allowed and will throw CompressionException with code EMPTY_ALGORITHMS.
      *
      * @param  CompressionAlgorithmEnum|iterable|null  $algorithms
      *
-     * @return self
+     * @return $this
      */
     public function withDefaultAlgorithms(
         CompressionAlgorithmEnum|iterable|null $algorithms
@@ -231,7 +235,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
     /**
      * Clear default algorithms (sugar for withDefaultAlgorithms(null))
      *
-     * @return self
+     * @return $this
      */
     public function withoutDefaultAlgorithms(): self
     {
@@ -262,10 +266,12 @@ final class CompressionBuilder implements Countable, IteratorAggregate
     /**
      * Replace algorithms for a specific item (no merge with defaults)
      *
+     * Note: Empty iterable is not allowed and will throw CompressionException with code EMPTY_ALGORITHMS.
+     *
      * @param  string  $identifier
      * @param  CompressionAlgorithmEnum|iterable  $algorithms
      *
-     * @return self
+     * @return $this
      * @throws CompressionException if item not found or algorithms invalid
      */
     public function replaceAlgorithms(
@@ -331,10 +337,10 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * Internal method to update algorithms for a specific item
      *
      * Uses resolveAlgorithms() to merge with defaults, maintaining consistency with add() and addFile().
-     * Note: Empty arrays are not allowed.
+     * Note: Empty iterable is not allowed and will throw CompressionException with code EMPTY_ALGORITHMS.
      *
      * @internal Used by CompressionItemConfigurator
-     * @throws CompressionException if item not found or an empty array is provided
+     * @throws CompressionException if item not found or empty iterable provided (EMPTY_ALGORITHMS)
      */
     public function updateAlgorithms(
         string $identifier,
@@ -353,7 +359,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * Set fail-fast mode
      *
      * @param bool $failFast If true, throw exception on first error. If false, collect errors and continue.
-     * @return self
+     * @return $this
      */
     public function setFailFast(bool $failFast): self
     {
@@ -379,7 +385,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * last remaining item (or null if no items remain).
      *
      * @param string $identifier
-     * @return self
+     * @return $this
      * @throws CompressionException if item not found
      */
     public function delete(string $identifier): self
@@ -638,7 +644,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * Note: Default algorithms and failFast mode remain unchanged.
      * Use withDefaultAlgorithms(null) to clear defaults if needed.
      *
-     * @return self
+     * @return $this
      */
     public function clear(): self
     {
