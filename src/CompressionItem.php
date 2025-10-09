@@ -61,7 +61,7 @@ final readonly class CompressionItem
 
         if ($size === false) {
             throw new CompressionException(
-                sprintf('Failed to get file size: %s', $this->content),
+                sprintf('Failed to get file size: %s (check permissions/SELinux)', $this->content),
                 CompressionErrorCode::FILE_NOT_READABLE->value
             );
         }
@@ -122,7 +122,7 @@ final readonly class CompressionItem
 
         if (!is_readable($this->content)) {
             throw new CompressionException(
-                sprintf('File not readable: %s', $this->content),
+                sprintf('File not readable: %s (check permissions/SELinux)', $this->content),
                 CompressionErrorCode::FILE_NOT_READABLE->value
             );
         }
@@ -133,7 +133,7 @@ final readonly class CompressionItem
 
         if ($content === false) {
             throw new CompressionException(
-                sprintf('Failed to read file: %s', $this->content),
+                sprintf('Failed to read file: %s (check permissions/SELinux)', $this->content),
                 CompressionErrorCode::FILE_NOT_READABLE->value
             );
         }

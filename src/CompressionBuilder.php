@@ -100,7 +100,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
 
         if (!is_readable($filePath)) {
             throw new CompressionException(
-                sprintf('File not readable: %s', $filePath),
+                sprintf('File not readable: %s (check permissions/SELinux)', $filePath),
                 CompressionErrorCode::FILE_NOT_READABLE->value
             );
         }
@@ -526,7 +526,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
 
                     if ($fp === false) {
                         throw new CompressionException(
-                            sprintf('File not readable: %s', $item->getContent()),
+                            sprintf('File not readable: %s (check permissions/SELinux)', $item->getContent()),
                             CompressionErrorCode::FILE_NOT_READABLE->value
                         );
                     }
