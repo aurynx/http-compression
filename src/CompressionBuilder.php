@@ -48,6 +48,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  string|null  $customIdentifier  Optional custom identifier for the item
      *
      * @return self
+     * @throws JsonException
      */
     public function add(
         string $content,
@@ -78,6 +79,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  string|null  $customIdentifier  Optional custom identifier for the item
      *
      * @return self
+     * @throws JsonException
      */
     public function addFile(
         string $filePath,
@@ -127,6 +129,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  CompressionAlgorithmEnum|iterable|null  $defaultAlgorithms
      *
      * @return self
+     * @throws JsonException
      */
     public function addMany(
         iterable $payloads,
@@ -162,6 +165,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  CompressionAlgorithmEnum|iterable|null  $defaultAlgorithms
      *
      * @return self
+     * @throws JsonException
      */
     public function addManyFiles(
         iterable $payloads,
@@ -269,7 +273,8 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * @param  CompressionAlgorithmEnum|iterable  $algorithms
      *
      * @return self
-     * @throws JsonException if item not found or algorithms invalid*@throws JsonException
+     * @throws CompressionException if item not found or algorithms invalid
+     * @throws JsonException
      */
     public function replaceAlgorithms(
         string $identifier,
@@ -335,6 +340,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      *
      * @internal Used by CompressionItemConfigurator
      * @throws CompressionException if an empty array is provided
+     * @throws JsonException
      */
     public function updateAlgorithms(
         string $identifier,
