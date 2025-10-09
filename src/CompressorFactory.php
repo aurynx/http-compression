@@ -13,9 +13,7 @@ final class CompressorFactory
     /**
      * Create a compressor instance for the specified algorithm
      *
-     * @param AlgorithmEnum  $algorithm
      *
-     * @return CompressorInterface
      */
     public static function create(AlgorithmEnum $algorithm): CompressorInterface
     {

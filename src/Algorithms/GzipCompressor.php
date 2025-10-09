@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Ayrunx\HttpCompression\Algorithms;
 
 use Ayrunx\HttpCompression\AlgorithmEnum;
-use Ayrunx\HttpCompression\ErrorCode;
 use Ayrunx\HttpCompression\CompressionException;
 use Ayrunx\HttpCompression\CompressorInterface;
+use Ayrunx\HttpCompression\ErrorCode;
 
 final class GzipCompressor implements CompressorInterface
 {

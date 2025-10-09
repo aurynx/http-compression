@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 use Ayrunx\HttpCompression\AlgorithmEnum;
-use Ayrunx\HttpCompression\CompressorFactory;
-use Ayrunx\HttpCompression\Algorithms\GzipCompressor;
 use Ayrunx\HttpCompression\Algorithms\BrotliCompressor;
+use Ayrunx\HttpCompression\Algorithms\GzipCompressor;
 use Ayrunx\HttpCompression\Algorithms\ZstdCompressor;
+use Ayrunx\HttpCompression\CompressorFactory;
 use Ayrunx\HttpCompression\CompressorInterface;
 
 test('factory creates gzip compressor', function () {
@@ -33,7 +35,7 @@ test('factory creates zstd compressor', function () {
 
 test('compressor instance can be used directly', function () {
     $compressor = CompressorFactory::create(AlgorithmEnum::Gzip);
-    $content = 'Direct usage test';
+    $content    = 'Direct usage test';
 
     $compressed = $compressor->compress($content);
     expect($compressed)->not->toBe($content);

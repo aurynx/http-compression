@@ -43,7 +43,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * Add raw content for compression
      *
      * @param  string  $content  Raw content to compress
-     * @param  AlgorithmEnum|iterable|null  $algorithms
      * @param  string|null  $customIdentifier  Optional custom identifier for the item
      *
      * @return $this
@@ -62,9 +61,9 @@ final class CompressionBuilder implements Countable, IteratorAggregate
             );
         }
 
-        $this->items[$identifier] = new CompressionItem($content, false, $identifier, $this->maxBytes);
+        $this->items[$identifier]      = new CompressionItem($content, false, $identifier, $this->maxBytes);
         $this->algorithms[$identifier] = $this->resolveAlgorithms($algorithms);
-        $this->lastAddedIdentifier = $identifier;
+        $this->lastAddedIdentifier     = $identifier;
 
         return $this;
     }
@@ -73,7 +72,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * Add a file for compression
      *
      * @param  string  $filePath  Path to the file to compress
-     * @param  AlgorithmEnum|iterable|null  $algorithms
      * @param  string|null  $customIdentifier  Optional custom identifier for the item
      *
      * @return $this
@@ -112,9 +110,9 @@ final class CompressionBuilder implements Countable, IteratorAggregate
             $normalizedPath = $filePath;
         }
 
-        $this->items[$identifier] = new CompressionItem($normalizedPath, true, $identifier, $this->maxBytes);
+        $this->items[$identifier]      = new CompressionItem($normalizedPath, true, $identifier, $this->maxBytes);
         $this->algorithms[$identifier] = $this->resolveAlgorithms($algorithms);
-        $this->lastAddedIdentifier = $identifier;
+        $this->lastAddedIdentifier     = $identifier;
 
         return $this;
     }
@@ -196,7 +194,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
     /**
      * Get the identifier of the last added item
      *
-     * @return string|null
      */
     public function getLastIdentifier(): ?string
     {
@@ -209,7 +206,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * Pass null to clear defaults.
      * Note: Empty iterable is not allowed and will throw CompressionException with code EMPTY_ALGORITHMS.
      *
-     * @param  AlgorithmEnum|iterable|null  $algorithms
      *
      * @return $this
      */
@@ -248,7 +244,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
     /**
      * Get normalized algorithms for a specific item
      *
-     * @param string $identifier
      * @return array<string, int> Map of algorithm => level
      * @throws CompressionException if item not found
      */
@@ -269,8 +264,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      *
      * Note: Empty iterable is not allowed and will throw CompressionException with code EMPTY_ALGORITHMS.
      *
-     * @param  string  $identifier
-     * @param  AlgorithmEnum|iterable  $algorithms
      *
      * @return $this
      * @throws CompressionException if item not found or algorithms invalid
@@ -294,9 +287,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
     /**
      * Configure algorithms for a specific item (chainable)
      *
-     * @param string $identifier
      *
-     * @return ItemConfigurator
      * @throws CompressionException if item not found
      */
     public function forItem(string $identifier): ItemConfigurator
@@ -320,7 +311,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      *
      * If all items were deleted, throws an exception.
      *
-     * @return ItemConfigurator
      * @throws CompressionException if no items exist in the builder
      */
     public function forLast(): ItemConfigurator
@@ -373,7 +363,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
     /**
      * Get current fail-fast mode
      *
-     * @return bool
      */
     public function isFailFast(): bool
     {
@@ -386,7 +375,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * If the deleted item was the last added, the lastAddedIdentifier is updated to the
      * last remaining item (or null if no items remain).
      *
-     * @param string $identifier
      * @return $this
      * @throws CompressionException if item not found
      */
@@ -415,8 +403,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
     /**
      * Check if an item with the given identifier exists
      *
-     * @param string $identifier
-     * @return bool
      */
     public function has(string $identifier): bool
     {
@@ -455,9 +441,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
     /**
      * Compress a specific item by its identifier
      *
-     * @param string $identifier
      *
-     * @return CompressionResult
      * @throws CompressionException if failFast is true and compression fails, or if item not found
      */
     public function compressOne(string $identifier): CompressionResult
@@ -483,19 +467,16 @@ final class CompressionBuilder implements Countable, IteratorAggregate
     /**
      * Internal method to compress a single item
      *
-     * @param string $identifier
-     * @param CompressionItem $item
      *
-     * @return CompressionResult
      * @throws CompressionException if failFast is true and any algorithm fails
      */
     private function compressItem(string $identifier, CompressionItem $item): CompressionResult
     {
         // Avoid reading payload early; enforce limit first
-        $algorithms = $this->algorithms[$identifier];
-        $compressed = [];
+        $algorithms      = $this->algorithms[$identifier];
+        $compressed      = [];
         $algorithmErrors = [];
-        $lastError = null;
+        $lastError       = null;
 
         // Enforce limit once before processing (applies to both raw and file)
         try {
@@ -505,6 +486,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
             if ($this->failFast) {
                 throw $e;
             }
+
             // Collect as a complete failure
             return CompressionResult::createError($identifier, $e);
         }
@@ -555,7 +537,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
                 }
                 // In non-failFast mode, track per-algorithm error with code and message
                 $algorithmErrors[$algorithmValue] = [
-                    'code' => $e->getCode(),
+                    'code'    => $e->getCode(),
                     'message' => $e->getMessage(),
                 ];
             } catch (ValueError $e) {
@@ -569,7 +551,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
                 }
                 // Track per-algorithm error with code and message
                 $algorithmErrors[$algorithmValue] = [
-                    'code' => $lastError->getCode(),
+                    'code'    => $lastError->getCode(),
                     'message' => $lastError->getMessage(),
                 ];
             }
@@ -611,7 +593,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      *
      * Implements Countable interface.
      *
-     * @return int
      */
     public function count(): int
     {
@@ -634,7 +615,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
     /**
      * Check if the builder is empty
      *
-     * @return bool
      */
     public function isEmpty(): bool
     {
@@ -651,8 +631,8 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      */
     public function clear(): self
     {
-        $this->items = [];
-        $this->algorithms = [];
+        $this->items               = [];
+        $this->algorithms          = [];
         $this->lastAddedIdentifier = null;
 
         return $this;
@@ -672,7 +652,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      * If both defaults and item-specific algorithms are provided, they are merged.
      * Item-specific algorithms override defaults for the same algorithm type.
      *
-     * @param  AlgorithmEnum|iterable|null  $algorithms
      *
      * @return array<string, int>
      */
@@ -708,7 +687,6 @@ final class CompressionBuilder implements Countable, IteratorAggregate
      *
      * Note: Empty arrays are not allowed and will throw CompressionException.
      *
-     * @param  AlgorithmEnum|iterable|null  $algorithms
      *
      * @return array<string, int>
      */
@@ -737,7 +715,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
             try {
                 if ($key instanceof AlgorithmEnum) {
                     $algorithm = $key;
-                    $level = $value;
+                    $level     = $value;
                     if (!is_int($level)) {
                         throw new CompressionException(
                             sprintf('Level must be integer for %s, got %s', $algorithm->value, get_debug_type($level)),
@@ -746,11 +724,11 @@ final class CompressionBuilder implements Countable, IteratorAggregate
                     }
                 } elseif ($value instanceof AlgorithmEnum) {
                     $algorithm = $value;
-                    $level = $algorithm->getDefaultLevel();
+                    $level     = $algorithm->getDefaultLevel();
                 } elseif (is_string($key)) {
                     // Key is algorithm name; parse it regardless of value type to provide better errors
                     $algorithm = AlgorithmEnum::from($key);
-                    $level = $value;
+                    $level     = $value;
                     if (!is_int($level)) {
                         throw new CompressionException(
                             sprintf('Level must be integer for %s, got %s', $algorithm->value, get_debug_type($level)),
@@ -759,9 +737,9 @@ final class CompressionBuilder implements Countable, IteratorAggregate
                     }
                 } elseif (is_int($key) && is_string($value)) {
                     $algorithm = AlgorithmEnum::from($value);
-                    $level = $algorithm->getDefaultLevel();
+                    $level     = $algorithm->getDefaultLevel();
                 } else {
-                    $contextKey = json_encode($key, JSON_THROW_ON_ERROR);
+                    $contextKey   = json_encode($key, JSON_THROW_ON_ERROR);
                     $contextValue = json_encode($value, JSON_THROW_ON_ERROR);
                     throw new CompressionException(
                         sprintf('Invalid algorithm specification: key=%s, value=%s', $contextKey, $contextValue),

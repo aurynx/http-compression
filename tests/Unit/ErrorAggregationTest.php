@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Ayrunx\HttpCompression\AlgorithmEnum as Algo;
 use Ayrunx\HttpCompression\CompressionBuilder;
-use Ayrunx\HttpCompression\ErrorCode as Err;
 use Ayrunx\HttpCompression\CompressionResult as Result;
+use Ayrunx\HttpCompression\ErrorCode as Err;
 
 it('keeps codes for partial errors (brotli unavailable)', function () {
     $builder = new CompressionBuilder();
@@ -13,7 +13,7 @@ it('keeps codes for partial errors (brotli unavailable)', function () {
     // both algorithms; gzip should succeed, brotli may be unavailable on CI
     $builder->withDefaultAlgorithms([
         'gzip' => Algo::Gzip->getDefaultLevel(),
-        'br' => Algo::Brotli->getDefaultLevel(),
+        'br'   => Algo::Brotli->getDefaultLevel(),
     ]);
     $builder->add('hello');
 

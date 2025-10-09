@@ -41,7 +41,6 @@ final readonly class CompressionItem
     /**
      * Get the size of content/file in bytes
      *
-     * @return int
      * @throws CompressionException
      */
     public function size(): int
@@ -110,6 +109,7 @@ final readonly class CompressionItem
     {
         if (!$this->isFile) {
             $this->ensureWithinLimit();
+
             return $this->content;
         }
 

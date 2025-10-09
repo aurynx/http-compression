@@ -19,7 +19,9 @@
     "license": "MIT",
     "scripts": {
         "stan": "phpstan analyse -c phpstan.neon.dist --memory-limit=1G",
-        "stan:ci": "phpstan analyse -c phpstan.neon.dist --memory-limit=1G --no-progress"
+        "stan:ci": "phpstan analyse -c phpstan.neon.dist --memory-limit=1G --no-progress",
+        "cs:check": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff --ansi",
+        "cs:fix": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --ansi"
     },
     "autoload": {
         "psr-4": {

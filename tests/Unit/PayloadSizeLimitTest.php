@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Ayrunx\HttpCompression\AlgorithmEnum;
 use Ayrunx\HttpCompression\CompressionBuilder;
-use Ayrunx\HttpCompression\ErrorCode;
 use Ayrunx\HttpCompression\CompressionException;
+use Ayrunx\HttpCompression\ErrorCode;
 
 it('throws PAYLOAD_TOO_LARGE for raw content over limit (failFast)', function () {
     $builder = new CompressionBuilder(maxBytes: 10);

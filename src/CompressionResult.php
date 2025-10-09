@@ -42,7 +42,6 @@ final readonly class CompressionResult
     /**
      * Create a result with partial success (some algorithms succeeded, some failed)
      *
-     * @param string $identifier
      * @param array<string, string> $compressed
      * @param array<string, array{code:int, message:string}> $algorithmErrors
      */
@@ -119,13 +118,13 @@ final readonly class CompressionResult
         return !empty($this->compressed) && !empty($this->algorithmErrors);
     }
 
-    /** @return CompressionException|null */
+    /**  */
     public function getError(): ?CompressionException
     {
         return $this->error;
     }
 
-    /** @return string|null */
+    /**  */
     public function getErrorMessage(): ?string
     {
         return $this->error?->getMessage();

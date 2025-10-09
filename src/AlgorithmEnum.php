@@ -6,9 +6,9 @@ namespace Ayrunx\HttpCompression;
 
 enum AlgorithmEnum: string
 {
-    case Gzip = 'gzip';
+    case Gzip   = 'gzip';
     case Brotli = 'br';
-    case Zstd = 'zstd';
+    case Zstd   = 'zstd';
 
     /**
      * Check if the algorithm is available on the current system
@@ -16,9 +16,9 @@ enum AlgorithmEnum: string
     public function isAvailable(): bool
     {
         return match ($this) {
-            self::Gzip => extension_loaded('zlib'),
+            self::Gzip   => extension_loaded('zlib'),
             self::Brotli => extension_loaded('brotli'),
-            self::Zstd => extension_loaded('zstd'),
+            self::Zstd   => extension_loaded('zstd'),
         };
     }
 
@@ -28,9 +28,9 @@ enum AlgorithmEnum: string
     public function getDefaultLevel(): int
     {
         return match ($this) {
-            self::Gzip => 9,
+            self::Gzip   => 9,
             self::Brotli => 11,
-            self::Zstd => 3,
+            self::Zstd   => 3,
         };
     }
 
@@ -40,9 +40,9 @@ enum AlgorithmEnum: string
     public function getMinLevel(): int
     {
         return match ($this) {
-            self::Gzip => 1,
+            self::Gzip   => 1,
             self::Brotli => 0,
-            self::Zstd => 1,
+            self::Zstd   => 1,
         };
     }
 
@@ -52,9 +52,9 @@ enum AlgorithmEnum: string
     public function getMaxLevel(): int
     {
         return match ($this) {
-            self::Gzip => 9,
+            self::Gzip   => 9,
             self::Brotli => 11,
-            self::Zstd => 22,
+            self::Zstd   => 22,
         };
     }
 
@@ -85,9 +85,9 @@ enum AlgorithmEnum: string
     public function getRequiredExtension(): string
     {
         return match ($this) {
-            self::Gzip => 'zlib',
+            self::Gzip   => 'zlib',
             self::Brotli => 'brotli',
-            self::Zstd => 'zstd',
+            self::Zstd   => 'zstd',
         };
     }
 }

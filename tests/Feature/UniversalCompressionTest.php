@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Ayrunx\HttpCompression\AlgorithmEnum;
 use Ayrunx\HttpCompression\CompressionBuilder;
 use Ayrunx\HttpCompression\CompressionResult;
@@ -140,7 +142,7 @@ test('compress single data with algorithms and custom levels', function () {
     $builder = new CompressionBuilder();
     $builder->add('Test data', [
         'gzip' => 5,
-        'br' => 6,
+        'br'   => 6,
     ]);
     $results = $builder->compress();
 
@@ -181,10 +183,10 @@ test('decompress single data with single algorithm', function () {
     $builder->add('Hello!', AlgorithmEnum::Gzip);
     $results = $builder->compress();
 
-    $result = array_values($results)[0];
+    $result     = array_values($results)[0];
     $compressed = $result->getCompressed()['gzip'];
 
-    $compressor = CompressorFactory::create(AlgorithmEnum::Gzip);
+    $compressor   = CompressorFactory::create(AlgorithmEnum::Gzip);
     $decompressed = $compressor->decompress($compressed);
 
     expect($decompressed)->toBe('Hello!');
@@ -197,11 +199,11 @@ test('decompress array of data with single algorithm', function () {
     $builder->addMany($data, AlgorithmEnum::Gzip);
     $results = $builder->compress();
 
-    $compressor = CompressorFactory::create(AlgorithmEnum::Gzip);
+    $compressor   = CompressorFactory::create(AlgorithmEnum::Gzip);
     $decompressed = [];
 
     foreach ($results as $result) {
-        $compressed = $result->getCompressed()['gzip'];
+        $compressed     = $result->getCompressed()['gzip'];
         $decompressed[] = $compressor->decompress($compressed);
     }
 

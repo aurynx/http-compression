@@ -18,7 +18,6 @@ final readonly class ItemConfigurator
     /**
      * Set algorithms for this specific item
      *
-     * @param  AlgorithmEnum|iterable|null  $algorithms
      *
      * @return CompressionBuilder Returns to the main builder for chaining
      */
@@ -33,7 +32,6 @@ final readonly class ItemConfigurator
     /**
      * Get the identifier of this item
      *
-     * @return string
      */
     public function getIdentifier(): string
     {
