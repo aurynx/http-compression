@@ -12,7 +12,7 @@ $finder = Finder::create()
     ->ignoreVCS(true)
 ;
 
-return (new Config())
+return new Config()
     ->setRiskyAllowed(true)
     ->setCacheFile(__DIR__ . '/.php-cs-fixer.cache')
     ->setFinder($finder)
