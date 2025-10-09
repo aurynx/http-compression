@@ -15,7 +15,7 @@ namespace Ayrunx\HttpCompression;
  * - isError(): bool - true when complete failure (no algorithms succeeded)
  * - getCompressed(): array<string, string> - all successful compressed payloads
  */
-final readonly class Result
+final readonly class CompressionResult
 {
     /**
      * @param string $identifier Item identifier
@@ -34,9 +34,9 @@ final readonly class Result
     /**
      * Create a result representing a complete error
      */
-    public static function createError(string $identifier, CompressionException $error): Result
+    public static function createError(string $identifier, CompressionException $error): CompressionResult
     {
-        return new Result($identifier, [], $error);
+        return new CompressionResult($identifier, [], $error);
     }
 
     /**
@@ -50,8 +50,8 @@ final readonly class Result
         string $identifier,
         array $compressed,
         array $algorithmErrors
-    ): Result {
-        return new Result($identifier, $compressed, null, $algorithmErrors);
+    ): CompressionResult {
+        return new CompressionResult($identifier, $compressed, null, $algorithmErrors);
     }
 
     public function getIdentifier(): string

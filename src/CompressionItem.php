@@ -7,7 +7,7 @@ namespace Ayrunx\HttpCompression;
 /**
  * Represents a single item to be compressed
  */
-final readonly class Item
+final readonly class CompressionItem
 {
     /** @var int Default max size: 50MB */
     private const int DEFAULT_MAX_SIZE = 50 * 1024 * 1024;

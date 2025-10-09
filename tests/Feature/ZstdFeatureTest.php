@@ -1,8 +1,8 @@
 <?php
 
 use Ayrunx\HttpCompression\AlgorithmEnum;
-use Ayrunx\HttpCompression\Builder;
-use Ayrunx\HttpCompression\Factory;
+use Ayrunx\HttpCompression\CompressionBuilder;
+use Ayrunx\HttpCompression\CompressorFactory;
 
 beforeEach(function () {
     $this->testDir = sys_get_temp_dir() . '/compressor_test_' . uniqid('', true);
@@ -26,7 +26,7 @@ afterEach(function () {
 });
 
 test('compress single data with zstd', function () {
-    $builder = new Builder();
+    $builder = new CompressionBuilder();
     $builder->add('Hello Zstd', AlgorithmEnum::Zstd);
     $results = $builder->compress();
 
@@ -41,7 +41,7 @@ test('compress file with zstd algorithm', function () {
     $content = 'Zstd compression test';
     file_put_contents($inputFile, $content);
 
-    $builder = new Builder();
+    $builder = new CompressionBuilder();
     $builder->addFile($inputFile, AlgorithmEnum::Zstd);
     $results = $builder->compress();
 

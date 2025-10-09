@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Ayrunx\HttpCompression\Builder;
+use Ayrunx\HttpCompression\CompressionBuilder;
 
 it('maintains "last" invariant after deleting non-last then last', function () {
-    $builder = new Builder();
+    $builder = new CompressionBuilder();
 
     // Add three items with explicit identifiers to make assertions stable
     $builder->add('A', null, 'A');

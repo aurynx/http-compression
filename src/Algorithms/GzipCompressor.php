@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Ayrunx\HttpCompression\Compressor;
+namespace Ayrunx\HttpCompression\Algorithms;
 
 use Ayrunx\HttpCompression\AlgorithmEnum;
 use Ayrunx\HttpCompression\ErrorCode;

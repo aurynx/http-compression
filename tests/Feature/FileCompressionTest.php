@@ -1,9 +1,9 @@
 <?php
 
 use Ayrunx\HttpCompression\AlgorithmEnum;
-use Ayrunx\HttpCompression\Builder;
+use Ayrunx\HttpCompression\CompressionBuilder;
 use Ayrunx\HttpCompression\CompressionException;
-use Ayrunx\HttpCompression\Factory;
+use Ayrunx\HttpCompression\CompressorFactory;
 
 beforeEach(function () {
     $this->testDir = sys_get_temp_dir() . '/compressor_test_' . uniqid();
@@ -32,7 +32,7 @@ test('compress single file with auto-generated output path', function () {
     $content = 'Hello, World! This is test content for file compression.';
     file_put_contents($inputFile, $content);
 
-    $builder = new Builder();
+    $builder = new CompressionBuilder();
     $builder->addFile($inputFile, AlgorithmEnum::Gzip);
     $results = $builder->compress();
 
@@ -44,7 +44,7 @@ test('compress single file with auto-generated output path', function () {
 
     expect(file_exists($outputFile))->toBeTrue();
 
-    $compressor = Factory::create(AlgorithmEnum::Gzip);
+    $compressor = CompressorFactory::create(AlgorithmEnum::Gzip);
     $decompressed = $compressor->decompress(file_get_contents($outputFile));
     expect($decompressed)->toBe($content);
 });
@@ -55,7 +55,7 @@ test('compress single file with custom output path', function () {
     $content = 'Custom output path test content';
     file_put_contents($inputFile, $content);
 
-    $builder = new Builder();
+    $builder = new CompressionBuilder();
     $builder->addFile($inputFile, AlgorithmEnum::Gzip);
     $results = $builder->compress();
 
@@ -70,7 +70,7 @@ test('decompress single file with auto-generated output path', function () {
     $content = 'Test content for decompression';
     $compressedFile = $this->testDir . '/test.txt.gzip';
 
-    $compressor = Factory::create(AlgorithmEnum::Gzip);
+    $compressor = CompressorFactory::create(AlgorithmEnum::Gzip);
     $compressed = $compressor->compress($content);
     file_put_contents($compressedFile, $compressed);
 
@@ -87,7 +87,7 @@ test('decompress single file with custom output path', function () {
     $compressedFile = $this->testDir . '/compressed.gz';
     $outputFile = $this->testDir . '/decompressed.txt';
 
-    $compressor = Factory::create(AlgorithmEnum::Gzip);
+    $compressor = CompressorFactory::create(AlgorithmEnum::Gzip);
     $compressed = $compressor->compress($content);
     file_put_contents($compressedFile, $compressed);
 
@@ -109,7 +109,7 @@ test('compress multiple files', function () {
         file_put_contents($file, "Content of {$file}");
     }
 
-    $builder = new Builder();
+    $builder = new CompressionBuilder();
     $builder->addManyFiles($files, AlgorithmEnum::Gzip);
     $results = $builder->compress();
 
@@ -133,7 +133,7 @@ test('decompress multiple files', function () {
         $this->testDir . '/file2.txt.gzip',
     ];
 
-    $compressor = Factory::create(AlgorithmEnum::Gzip);
+    $compressor = CompressorFactory::create(AlgorithmEnum::Gzip);
     foreach ($compressedFiles as $file) {
         $compressed = $compressor->compress("Content of {$file}");
         file_put_contents($file, $compressed);
@@ -158,7 +158,7 @@ test('compress file with custom compression level', function () {
     $content = str_repeat('Test content with repetitive data for better compression. ', 100);
     file_put_contents($inputFile, $content);
 
-    $builder = new Builder();
+    $builder = new CompressionBuilder();
     $builder->addFile($inputFile, ['gzip' => 5]);
     $results = $builder->compress();
 
@@ -171,7 +171,7 @@ test('compress file with custom compression level', function () {
 
     expect(file_exists($outputFile))->toBeTrue();
 
-    $compressor = Factory::create(AlgorithmEnum::Gzip);
+    $compressor = CompressorFactory::create(AlgorithmEnum::Gzip);
     $decompressed = $compressor->decompress($compressed);
     expect($decompressed)->toBe($content);
 });
@@ -181,7 +181,7 @@ test('compress file with brotli algorithm', function () {
     $content = 'Brotli compression test';
     file_put_contents($inputFile, $content);
 
-    $builder = new Builder();
+    $builder = new CompressionBuilder();
     $builder->addFile($inputFile, AlgorithmEnum::Brotli);
     $results = $builder->compress();
 
@@ -196,7 +196,7 @@ test('compress file with brotli algorithm', function () {
 })->skip(!extension_loaded('brotli'), 'Brotli extension not available');
 
 test('compress file throws exception when file not found', function () {
-    $builder = new Builder();
+    $builder = new CompressionBuilder();
     $builder->addFile($this->testDir . '/nonexistent.txt', AlgorithmEnum::Gzip);
 })->throws(CompressionException::class);
 
@@ -214,7 +214,7 @@ test('compress creates output directory if not exists', function () {
     $content = 'Test content';
     file_put_contents($inputFile, $content);
 
-    $builder = new Builder();
+    $builder = new CompressionBuilder();
     $builder->addFile($inputFile, AlgorithmEnum::Gzip);
     $results = $builder->compress();
 

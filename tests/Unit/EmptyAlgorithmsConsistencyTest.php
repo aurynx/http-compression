@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Ayrunx\HttpCompression\Builder;
+use Ayrunx\HttpCompression\CompressionBuilder;
 use Ayrunx\HttpCompression\ErrorCode;
 use Ayrunx\HttpCompression\CompressionException;
 
 it('ensures withDefaultAlgorithms([]) throws EMPTY_ALGORITHMS with stable message', function () {
-    $builder = new Builder();
+    $builder = new CompressionBuilder();
 
     try {
         $builder->withDefaultAlgorithms([]);
@@ -19,7 +19,7 @@ it('ensures withDefaultAlgorithms([]) throws EMPTY_ALGORITHMS with stable messag
 });
 
 it('ensures replaceAlgorithms($id, []) throws the same EMPTY_ALGORITHMS with identical message', function () {
-    $builder = new Builder();
+    $builder = new CompressionBuilder();
     $builder->add('content');
     $id = $builder->getLastIdentifier();
 

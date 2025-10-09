@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 use Ayrunx\HttpCompression\AlgorithmEnum;
-use Ayrunx\HttpCompression\Builder;
+use Ayrunx\HttpCompression\CompressionBuilder;
 use Ayrunx\HttpCompression\ErrorCode;
 use Ayrunx\HttpCompression\CompressionException;
 
 it('throws INVALID_LEVEL_TYPE when string key maps to non-integer level', function () {
-    $builder = new Builder();
+    $builder = new CompressionBuilder();
 
     try {
         $builder->withDefaultAlgorithms(['gzip' => '9']);
@@ -21,7 +21,7 @@ it('throws INVALID_LEVEL_TYPE when string key maps to non-integer level', functi
 });
 
 it('accepts integer level values', function () {
-    $builder = new Builder();
+    $builder = new CompressionBuilder();
 
     // should not throw
     $builder->withDefaultAlgorithms(['gzip' => 5]);

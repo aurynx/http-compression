@@ -10,7 +10,7 @@ namespace Ayrunx\HttpCompression;
 final readonly class ItemConfigurator
 {
     public function __construct(
-        private Builder $builder,
+        private CompressionBuilder $builder,
         private string $identifier
     ) {
     }
@@ -20,11 +20,11 @@ final readonly class ItemConfigurator
      *
      * @param  AlgorithmEnum|iterable|null  $algorithms
      *
-     * @return Builder Returns to the main builder for chaining
+     * @return CompressionBuilder Returns to the main builder for chaining
      */
     public function withAlgorithms(
         AlgorithmEnum|iterable|null $algorithms
-    ): Builder {
+    ): CompressionBuilder {
         $this->builder->updateAlgorithms($this->identifier, $algorithms);
 
         return $this->builder;

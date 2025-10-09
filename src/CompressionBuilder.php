@@ -14,9 +14,9 @@ use ValueError;
 /**
  * Fluent API builder for compression operations
  */
-final class Builder implements Countable, IteratorAggregate
+final class CompressionBuilder implements Countable, IteratorAggregate
 {
-    /** @var array<string, Item> */
+    /** @var array<string, CompressionItem> */
     private array $items = [];
 
     /** @var array<string, array<string, int>> Map of identifier => [algorithm => level] */
@@ -62,7 +62,7 @@ final class Builder implements Countable, IteratorAggregate
             );
         }
 
-        $this->items[$identifier] = new Item($content, false, $identifier, $this->maxBytes);
+        $this->items[$identifier] = new CompressionItem($content, false, $identifier, $this->maxBytes);
         $this->algorithms[$identifier] = $this->resolveAlgorithms($algorithms);
         $this->lastAddedIdentifier = $identifier;
 
@@ -112,7 +112,7 @@ final class Builder implements Countable, IteratorAggregate
             $normalizedPath = $filePath;
         }
 
-        $this->items[$identifier] = new Item($normalizedPath, true, $identifier, $this->maxBytes);
+        $this->items[$identifier] = new CompressionItem($normalizedPath, true, $identifier, $this->maxBytes);
         $this->algorithms[$identifier] = $this->resolveAlgorithms($algorithms);
         $this->lastAddedIdentifier = $identifier;
 
@@ -426,7 +426,7 @@ final class Builder implements Countable, IteratorAggregate
     /**
      * Compress all added items
      *
-     * @return array<string, Result>
+     * @return array<string, CompressionResult>
      * @throws CompressionException if failFast is true and any item fails
      */
     public function compress(): array
@@ -445,7 +445,7 @@ final class Builder implements Countable, IteratorAggregate
                     throw $e;
                 }
 
-                $results[$identifier] = Result::createError($identifier, $e);
+                $results[$identifier] = CompressionResult::createError($identifier, $e);
             }
         }
 
@@ -457,10 +457,10 @@ final class Builder implements Countable, IteratorAggregate
      *
      * @param string $identifier
      *
-     * @return Result
+     * @return CompressionResult
      * @throws CompressionException if failFast is true and compression fails, or if item not found
      */
-    public function compressOne(string $identifier): Result
+    public function compressOne(string $identifier): CompressionResult
     {
         if (!isset($this->items[$identifier])) {
             throw new CompressionException(
@@ -476,7 +476,7 @@ final class Builder implements Countable, IteratorAggregate
                 throw $e;
             }
 
-            return Result::createError($identifier, $e);
+            return CompressionResult::createError($identifier, $e);
         }
     }
 
@@ -484,12 +484,12 @@ final class Builder implements Countable, IteratorAggregate
      * Internal method to compress a single item
      *
      * @param string $identifier
-     * @param Item $item
+     * @param CompressionItem $item
      *
-     * @return Result
+     * @return CompressionResult
      * @throws CompressionException if failFast is true and any algorithm fails
      */
-    private function compressItem(string $identifier, Item $item): Result
+    private function compressItem(string $identifier, CompressionItem $item): CompressionResult
     {
         // Avoid reading payload early; enforce limit first
         $algorithms = $this->algorithms[$identifier];
@@ -506,7 +506,7 @@ final class Builder implements Countable, IteratorAggregate
                 throw $e;
             }
             // Collect as a complete failure
-            return Result::createError($identifier, $e);
+            return CompressionResult::createError($identifier, $e);
         }
 
         $content = null; // lazy-load for a non-stream path
@@ -527,7 +527,7 @@ final class Builder implements Countable, IteratorAggregate
                     );
                 }
 
-                $compressor = Factory::create($algorithm);
+                $compressor = CompressorFactory::create($algorithm);
 
                 // Prefer a streaming path for files if supported by the compressor
                 if ($item->isFile() && $compressor instanceof StreamCompressorInterface) {
@@ -580,16 +580,16 @@ final class Builder implements Countable, IteratorAggregate
         }
 
         if (!empty($algorithmErrors)) {
-            return Result::createPartial($identifier, $compressed, $algorithmErrors);
+            return CompressionResult::createPartial($identifier, $compressed, $algorithmErrors);
         }
 
-        return new Result($identifier, $compressed);
+        return new CompressionResult($identifier, $compressed);
     }
 
     /**
      * Get all items currently in the builder
      *
-     * @return array<string, Item>
+     * @return array<string, CompressionItem>
      */
     public function getItems(): array
     {
@@ -624,7 +624,7 @@ final class Builder implements Countable, IteratorAggregate
      * Implements IteratorAggregate interface.
      * Allows using builder in foreach loops.
      *
-     * @return Traversable<string, Item>
+     * @return Traversable<string, CompressionItem>
      */
     public function getIterator(): Traversable
     {
