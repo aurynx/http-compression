@@ -1,0 +1,11 @@
+parameters:
+    level: max
+    paths:
+        - src
+    tmpDir: .phpstan-cache
+    inferPrivatePropertyTypeFromConstructor: true
+    checkMissingTypehints: true
+    treatPhpDocTypesAsCertain: true
+    reportUnmatchedIgnoredErrors: true
+    parallel:
+        maximumNumberOfProcesses: 4

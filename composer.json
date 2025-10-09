@@ -17,6 +17,10 @@
     ],
     "type": "library",
     "license": "MIT",
+    "scripts": {
+        "stan": "phpstan analyse -c phpstan.neon.dist --memory-limit=1G",
+        "stan:ci": "phpstan analyse -c phpstan.neon.dist --memory-limit=1G --no-progress"
+    },
     "autoload": {
         "psr-4": {
             "Ayrunx\\HttpCompression\\": "src/"
