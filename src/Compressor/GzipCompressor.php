@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ayrunx\HttpCompression\Compressor;
 
 use Ayrunx\HttpCompression\CompressionAlgorithmEnum;
+use Ayrunx\HttpCompression\CompressionErrorCode;
 use Ayrunx\HttpCompression\CompressionException;
 use Ayrunx\HttpCompression\CompressorInterface;
 
@@ -16,7 +17,8 @@ final class GzipCompressor implements CompressorInterface
 
         if (!$algorithm->isAvailable()) {
             throw new CompressionException(
-                sprintf('%s extension not available', $algorithm->getRequiredExtension())
+                sprintf('%s extension not available', $algorithm->getRequiredExtension()),
+                CompressionErrorCode::ALGORITHM_UNAVAILABLE->value
             );
         }
 
@@ -26,7 +28,10 @@ final class GzipCompressor implements CompressorInterface
         $result = gzencode($content, $level);
 
         if ($result === false) {
-            throw new CompressionException('Gzip compression failed');
+            throw new CompressionException(
+                'Gzip compression failed',
+                CompressionErrorCode::COMPRESSION_FAILED->value
+            );
         }
 
         return $result;
@@ -38,14 +43,18 @@ final class GzipCompressor implements CompressorInterface
 
         if (!$algorithm->isAvailable()) {
             throw new CompressionException(
-                sprintf('%s extension not available', $algorithm->getRequiredExtension())
+                sprintf('%s extension not available', $algorithm->getRequiredExtension()),
+                CompressionErrorCode::ALGORITHM_UNAVAILABLE->value
             );
         }
 
         $result = gzdecode($content);
 
         if ($result === false) {
-            throw new CompressionException('Gzip decompression failed');
+            throw new CompressionException(
+                'Gzip decompression failed',
+                CompressionErrorCode::DECOMPRESSION_FAILED->value
+            );
         }
 
         return $result;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ayrunx\HttpCompression\Compressor;
 
 use Ayrunx\HttpCompression\CompressionAlgorithmEnum;
+use Ayrunx\HttpCompression\CompressionErrorCode;
 use Ayrunx\HttpCompression\CompressionException;
 use Ayrunx\HttpCompression\CompressorInterface;
 
@@ -16,7 +17,8 @@ final class BrotliCompressor implements CompressorInterface
 
         if (!$algorithm->isAvailable()) {
             throw new CompressionException(
-                sprintf('%s extension not available', $algorithm->getRequiredExtension())
+                sprintf('%s extension not available', $algorithm->getRequiredExtension()),
+                CompressionErrorCode::ALGORITHM_UNAVAILABLE->value
             );
         }
 
@@ -26,7 +28,10 @@ final class BrotliCompressor implements CompressorInterface
         $result = brotli_compress($content, $level);
 
         if ($result === false) {
-            throw new CompressionException('Brotli compression failed');
+            throw new CompressionException(
+                'Brotli compression failed',
+                CompressionErrorCode::COMPRESSION_FAILED->value
+            );
         }
 
         return $result;
@@ -38,14 +43,18 @@ final class BrotliCompressor implements CompressorInterface
 
         if (!$algorithm->isAvailable()) {
             throw new CompressionException(
-                sprintf('%s extension not available', $algorithm->getRequiredExtension())
+                sprintf('%s extension not available', $algorithm->getRequiredExtension()),
+                CompressionErrorCode::ALGORITHM_UNAVAILABLE->value
             );
         }
 
         $result = brotli_uncompress($content);
 
         if ($result === false) {
-            throw new CompressionException('Brotli decompression failed');
+            throw new CompressionException(
+                'Brotli decompression failed',
+                CompressionErrorCode::DECOMPRESSION_FAILED->value
+            );
         }
 
         return $result;

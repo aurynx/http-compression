@@ -298,7 +298,7 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
     {
         if ($this->lastAddedIdentifier === null) {
             throw new CompressionException(
-                'No item has been added yet',
+                'There are no items in the builder',
                 CompressionErrorCode::NO_ITEMS->value
             );
         }

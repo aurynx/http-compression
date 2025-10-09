@@ -10,9 +10,10 @@ namespace Ayrunx\HttpCompression;
  * Contract:
  * - successful: array<string, string> - successfully compressed data per algorithm
  * - errors: array<string, string> - error messages per algorithm (empty on full success)
+ * - isOk(): bool - true when all algorithms succeeded (alias of isSuccess)
  * - isPartial(): bool - true when some algorithms succeeded, some failed
  * - isError(): bool - true when complete failure (no algorithms succeeded)
- * - isSuccess(): bool - true when all algorithms succeeded
+ * - getCompressed(): array<string, string> - all successful compressed payloads
  */
 final readonly class CompressionResult
 {
@@ -66,17 +67,17 @@ final readonly class CompressionResult
     /**
      * Get compressed content for specific algorithm
      */
-    public function getCompressed(CompressionAlgorithmEnum $algorithm): ?string
+    public function getCompressedFor(CompressionAlgorithmEnum $algorithm): ?string
     {
         return $this->compressed[$algorithm->value] ?? null;
     }
 
     /**
-     * Get all compressed results
+     * Get all compressed results (consumer-friendly alias)
      *
      * @return array<string, string>
      */
-    public function getAllCompressed(): array
+    public function getCompressed(): array
     {
         return $this->compressed;
     }
@@ -117,6 +118,14 @@ final readonly class CompressionResult
     public function isSuccess(): bool
     {
         return $this->error === null && empty($this->algorithmErrors);
+    }
+
+    /**
+     * Stable alias for success state used by consumers
+     */
+    public function isOk(): bool
+    {
+        return $this->isSuccess();
     }
 
     /**

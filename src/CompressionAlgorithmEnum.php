@@ -63,12 +63,13 @@ enum CompressionAlgorithmEnum: string
         if ($level < $this->getMinLevel() || $level > $this->getMaxLevel()) {
             throw new CompressionException(
                 sprintf(
-                    '%s level must be between %d and %d, got %d',
+                    '%s level out of range: level=%d, allowed=[%d..%d]',
                     $this->name,
+                    $level,
                     $this->getMinLevel(),
-                    $this->getMaxLevel(),
-                    $level
-                )
+                    $this->getMaxLevel()
+                ),
+                CompressionErrorCode::LEVEL_OUT_OF_RANGE->value
             );
         }
     }
