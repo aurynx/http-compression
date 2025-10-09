@@ -23,4 +23,5 @@ enum CompressionErrorCode: int
     case EMPTY_ALGORITHMS = 1012;
     case INVALID_PAYLOAD = 1013;
     case NO_ITEMS = 1014;
+    case INVALID_LEVEL_TYPE = 1015;
 }

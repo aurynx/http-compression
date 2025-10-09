@@ -707,12 +707,25 @@ final class CompressionBuilder implements Countable, IteratorAggregate
                 if ($key instanceof CompressionAlgorithmEnum) {
                     $algorithm = $key;
                     $level = $value;
-                } elseif (is_string($key) && is_int($value)) {
-                    $algorithm = CompressionAlgorithmEnum::from($key);
-                    $level = $value;
+                    if (!is_int($level)) {
+                        throw new CompressionException(
+                            sprintf('Level must be integer for %s, got %s', $algorithm->value, get_debug_type($level)),
+                            CompressionErrorCode::INVALID_LEVEL_TYPE->value
+                        );
+                    }
                 } elseif ($value instanceof CompressionAlgorithmEnum) {
                     $algorithm = $value;
                     $level = $algorithm->getDefaultLevel();
+                } elseif (is_string($key)) {
+                    // Key is algorithm name; parse it regardless of value type to provide better errors
+                    $algorithm = CompressionAlgorithmEnum::from($key);
+                    $level = $value;
+                    if (!is_int($level)) {
+                        throw new CompressionException(
+                            sprintf('Level must be integer for %s, got %s', $algorithm->value, get_debug_type($level)),
+                            CompressionErrorCode::INVALID_LEVEL_TYPE->value
+                        );
+                    }
                 } elseif (is_int($key) && is_string($value)) {
                     $algorithm = CompressionAlgorithmEnum::from($value);
                     $level = $algorithm->getDefaultLevel();
@@ -725,6 +738,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
                     );
                 }
 
+                // Validate level range after type check
                 $algorithm->validateLevel($level);
                 $normalized[$algorithm->value] = $level;
             } catch (ValueError $e) {
