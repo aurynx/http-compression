@@ -1,5 +1,6 @@
 # Dependencies
 vendor
+.php-cs-fixer.cache
 
 # IDE
 .idea
