@@ -120,7 +120,7 @@ if ($results[0]->isOk()) {
 Chain methods for intuitive configuration:
 
 ```php
-$results = (new CompressionBuilder())
+$results = new CompressionBuilder()
     ->add('Content 1', AlgorithmEnum::Gzip)
     ->add('Content 2', AlgorithmEnum::Brotli)
     ->addFile('/path/to/file.txt', [
@@ -255,7 +255,7 @@ $assets = [
     $publicDir . '/js/vendor.js'
 ];
 
-$builder = (new CompressionBuilder())
+$builder = new CompressionBuilder()
     ->addManyFiles($assets, [
         AlgorithmEnum::Gzip->value => 9,
         AlgorithmEnum::Brotli->value => 11
