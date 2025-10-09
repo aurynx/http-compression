@@ -6,6 +6,7 @@ namespace Ayrunx\HttpCompression;
 
 use Ayrunx\HttpCompression\Compressor\BrotliCompressor;
 use Ayrunx\HttpCompression\Compressor\GzipCompressor;
+use Ayrunx\HttpCompression\Compressor\ZstdCompressor;
 
 final class Factory
 {
@@ -21,6 +22,7 @@ final class Factory
         return match ($algorithm) {
             AlgorithmEnum::Gzip   => new GzipCompressor(),
             AlgorithmEnum::Brotli => new BrotliCompressor(),
+            AlgorithmEnum::Zstd   => new ZstdCompressor(),
         };
     }
 }

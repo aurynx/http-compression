@@ -7,6 +7,7 @@ namespace Ayrunx\HttpCompression;
 use ArrayIterator;
 use Countable;
 use IteratorAggregate;
+use JsonException;
 use Traversable;
 use ValueError;
 
@@ -718,6 +719,7 @@ final class Builder implements Countable, IteratorAggregate
             return [
                 AlgorithmEnum::Gzip->value   => AlgorithmEnum::Gzip->getDefaultLevel(),
                 AlgorithmEnum::Brotli->value => AlgorithmEnum::Brotli->getDefaultLevel(),
+                AlgorithmEnum::Zstd->value   => AlgorithmEnum::Zstd->getDefaultLevel(),
             ];
         }
 
@@ -775,7 +777,7 @@ final class Builder implements Countable, IteratorAggregate
                 // Wrapped json_encode to avoid leaking JsonException
                 try {
                     $rawValue = is_string($key) ? $key : (is_string($value) ? $value : json_encode([$key, $value], JSON_THROW_ON_ERROR));
-                } catch (\JsonException $je) {
+                } catch (JsonException $je) {
                     throw new CompressionException(
                         'Invalid algorithm specification (json encode failed)',
                         ErrorCode::INVALID_ALGORITHM_SPEC->value,
@@ -787,8 +789,8 @@ final class Builder implements Countable, IteratorAggregate
                     ErrorCode::UNKNOWN_ALGORITHM->value,
                     $e
                 );
-            } catch (\JsonException $je) {
-                // Guard any unexpected JSON failures from above json_encode calls
+            } catch (JsonException $je) {
+                // Guard any unexpected JSON failures from the above json_encode calls
                 throw new CompressionException(
                     'Invalid algorithm specification (json encode failed)',
                     ErrorCode::INVALID_ALGORITHM_SPEC->value,

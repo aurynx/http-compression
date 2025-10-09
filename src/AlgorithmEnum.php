@@ -8,6 +8,7 @@ enum AlgorithmEnum: string
 {
     case Gzip = 'gzip';
     case Brotli = 'br';
+    case Zstd = 'zstd';
 
     /**
      * Check if the algorithm is available on the current system
@@ -17,6 +18,7 @@ enum AlgorithmEnum: string
         return match ($this) {
             self::Gzip => extension_loaded('zlib'),
             self::Brotli => extension_loaded('brotli'),
+            self::Zstd => extension_loaded('zstd'),
         };
     }
 
@@ -28,6 +30,7 @@ enum AlgorithmEnum: string
         return match ($this) {
             self::Gzip => 9,
             self::Brotli => 11,
+            self::Zstd => 3,
         };
     }
 
@@ -39,6 +42,7 @@ enum AlgorithmEnum: string
         return match ($this) {
             self::Gzip => 1,
             self::Brotli => 0,
+            self::Zstd => 1,
         };
     }
 
@@ -50,6 +54,7 @@ enum AlgorithmEnum: string
         return match ($this) {
             self::Gzip => 9,
             self::Brotli => 11,
+            self::Zstd => 22,
         };
     }
 
@@ -82,6 +87,7 @@ enum AlgorithmEnum: string
         return match ($this) {
             self::Gzip => 'zlib',
             self::Brotli => 'brotli',
+            self::Zstd => 'zstd',
         };
     }
 }

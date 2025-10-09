@@ -1,6 +1,6 @@
 {
     "name": "ayrunx/http-compression",
-    "description": "Framework-agnostic HTTP compression for PHP (gzip, brotli) with deterministic builds and safe file precompression.",
+    "description": "Framework-agnostic HTTP compression for PHP (gzip, brotli, zstd) with deterministic builds and safe file precompression.",
     "keywords": [
         "http",
         "compression",
@@ -8,6 +8,7 @@
         "gzip",
         "brotli",
         "br",
+        "zstd",
         "static",
         "nginx",
         "content-encoding",
@@ -43,7 +44,8 @@
         "phpstan/phpstan": "^2.1"
     },
     "suggest": {
-        "ext-brotli": "Enables Brotli compression."
+        "ext-brotli": "Enables Brotli compression.",
+        "ext-zstd": "Enables Zstandard (zstd) compression."
     },
     "config": {
         "platform": {

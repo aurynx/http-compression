@@ -4,6 +4,7 @@ use Ayrunx\HttpCompression\AlgorithmEnum;
 use Ayrunx\HttpCompression\Factory;
 use Ayrunx\HttpCompression\Compressor\GzipCompressor;
 use Ayrunx\HttpCompression\Compressor\BrotliCompressor;
+use Ayrunx\HttpCompression\Compressor\ZstdCompressor;
 use Ayrunx\HttpCompression\CompressorInterface;
 
 test('factory creates gzip compressor', function () {
@@ -20,6 +21,14 @@ test('factory creates brotli compressor', function () {
     expect($compressor)->toBeInstanceOf(CompressorInterface::class);
     expect($compressor)->toBeInstanceOf(BrotliCompressor::class);
     expect($compressor->getAlgorithm())->toBe(AlgorithmEnum::Brotli);
+});
+
+test('factory creates zstd compressor', function () {
+    $compressor = Factory::create(AlgorithmEnum::Zstd);
+
+    expect($compressor)->toBeInstanceOf(CompressorInterface::class);
+    expect($compressor)->toBeInstanceOf(ZstdCompressor::class);
+    expect($compressor->getAlgorithm())->toBe(AlgorithmEnum::Zstd);
 });
 
 test('compressor instance can be used directly', function () {
