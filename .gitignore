@@ -1,0 +1,24 @@
+# Dependencies
+vendor
+
+# IDE
+.idea
+.vscode
+.cursor
+.zed
+.fleet
+.atom
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+!.env.example

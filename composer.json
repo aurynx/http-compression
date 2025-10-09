@@ -1,0 +1,38 @@
+{
+    "name": "ayrunx/http-compression",
+    "description": "Framework-agnostic HTTP compression library (gzip, brotli)",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Ayrunx\\HttpCompression\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Anton Semenov",
+            "email": "anton.a.semenov@proton.me"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "php": "^8.4",
+        "ext-zlib": "*"
+    },
+    "require-dev": {
+        "pestphp/pest": "^4.1",
+        "phpstan/phpstan": "^2.1"
+    },
+    "suggest": {
+        "ext-brotli": "Enables Brotli compression."
+    },
+    "config": {
+        "platform": {
+            "php": "8.4"
+        },
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
+}
