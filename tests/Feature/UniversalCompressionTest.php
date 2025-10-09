@@ -1,8 +1,9 @@
 <?php
 
-use Ayrunx\HttpCompression\CompressionAlgorithmEnum;
-use Ayrunx\HttpCompression\Compressor;
-use Ayrunx\HttpCompression\CompressionResult;
+use Ayrunx\HttpCompression\AlgorithmEnum;
+use Ayrunx\HttpCompression\Builder;
+use Ayrunx\HttpCompression\Result;
+use Ayrunx\HttpCompression\Factory;
 
 beforeEach(function () {
     $this->testDir = sys_get_temp_dir() . '/compressor_test_' . uniqid();
@@ -27,12 +28,20 @@ afterEach(function () {
 
 // 1.1. Single raw data + single algorithm
 test('compress single raw data with single algorithm', function () {
-    $result = Compressor::compress('Hello, World!', CompressionAlgorithmEnum::Gzip);
+    $builder = new Builder();
+    $builder->add('Hello, World!', AlgorithmEnum::Gzip);
+    $results = $builder->compress();
 
-    expect($result)->toBeInstanceOf(CompressionResult::class);
-    expect($result->algorithm)->toBe(CompressionAlgorithmEnum::Gzip);
-    expect($result->isFile)->toBeFalse();
-    expect($result->content)->not->toBe('Hello, World!');
+    expect($results)->toBeArray();
+    expect($results)->toHaveCount(1);
+
+    $result = array_values($results)[0];
+    expect($result)->toBeInstanceOf(Result::class);
+    expect($result->isOk())->toBeTrue();
+
+    $compressed = $result->getCompressed();
+    expect($compressed)->toHaveKey('gzip');
+    expect($compressed['gzip'])->not->toBe('Hello, World!');
 });
 
 // 1.2. Single file + single algorithm
@@ -40,25 +49,32 @@ test('compress single file with single algorithm', function () {
     $file = $this->testDir . '/test.txt';
     file_put_contents($file, 'File content');
 
-    $result = Compressor::compress('file://' . $file, CompressionAlgorithmEnum::Gzip);
+    $builder = new Builder();
+    $builder->addFile($file, AlgorithmEnum::Gzip);
+    $results = $builder->compress();
 
-    expect($result)->toBeInstanceOf(CompressionResult::class);
-    expect($result->algorithm)->toBe(CompressionAlgorithmEnum::Gzip);
-    expect($result->isFile)->toBeTrue();
-    expect($result->identifier)->toBe($file);
+    expect($results)->toBeArray();
+    expect($results)->toHaveCount(1);
+
+    $result = array_values($results)[0];
+    expect($result)->toBeInstanceOf(Result::class);
+    expect($result->isOk())->toBeTrue();
+    expect($result->getCompressed())->toHaveKey('gzip');
 });
 
 // 1.3. Array of raw data + single algorithm
 test('compress array of raw data with single algorithm', function () {
-    $results = Compressor::compress(['data1', 'data2', 'data3'], CompressionAlgorithmEnum::Gzip);
+    $builder = new Builder();
+    $builder->addMany(['data1', 'data2', 'data3'], AlgorithmEnum::Gzip);
+    $results = $builder->compress();
 
     expect($results)->toBeArray();
     expect($results)->toHaveCount(3);
 
     foreach ($results as $result) {
-        expect($result)->toBeInstanceOf(CompressionResult::class);
-        expect($result->algorithm)->toBe(CompressionAlgorithmEnum::Gzip);
-        expect($result->isFile)->toBeFalse();
+        expect($result)->toBeInstanceOf(Result::class);
+        expect($result->isOk())->toBeTrue();
+        expect($result->getCompressed())->toHaveKey('gzip');
     }
 });
 
@@ -69,14 +85,16 @@ test('compress array of files with single algorithm', function () {
     file_put_contents($file1, 'Content 1');
     file_put_contents($file2, 'Content 2');
 
-    $results = Compressor::compress(['file://' . $file1, 'file://' . $file2], CompressionAlgorithmEnum::Gzip);
+    $builder = new Builder();
+    $builder->addManyFiles([$file1, $file2], AlgorithmEnum::Gzip);
+    $results = $builder->compress();
 
     expect($results)->toBeArray();
     expect($results)->toHaveCount(2);
 
     foreach ($results as $result) {
-        expect($result)->toBeInstanceOf(CompressionResult::class);
-        expect($result->isFile)->toBeTrue();
+        expect($result)->toBeInstanceOf(Result::class);
+        expect($result->isOk())->toBeTrue();
     }
 });
 
@@ -85,79 +103,119 @@ test('compress mixed array with single algorithm', function () {
     $file = $this->testDir . '/test.txt';
     file_put_contents($file, 'File content');
 
-    $results = Compressor::compress(['raw data', 'file://' . $file], CompressionAlgorithmEnum::Gzip);
+    $builder = new Builder();
+    $builder->add('raw data', AlgorithmEnum::Gzip);
+    $builder->addFile($file, AlgorithmEnum::Gzip);
+    $results = $builder->compress();
 
     expect($results)->toBeArray();
     expect($results)->toHaveCount(2);
-    expect($results[0]->isFile)->toBeFalse();
-    expect($results[1]->isFile)->toBeTrue();
-});
 
-// 2.1. Single data + single algorithm (already tested above)
+    foreach ($results as $result) {
+        expect($result)->toBeInstanceOf(Result::class);
+        expect($result->isOk())->toBeTrue();
+    }
+});
 
 // 2.2. Single data + array of algorithms
 test('compress single data with multiple algorithms', function () {
-    $results = Compressor::compress(
-        'Test data',
-        [CompressionAlgorithmEnum::Gzip, CompressionAlgorithmEnum::Brotli]
-    );
+    $builder = new Builder();
+    $builder->add('Test data', [AlgorithmEnum::Gzip, AlgorithmEnum::Brotli]);
+    $results = $builder->compress();
 
     expect($results)->toBeArray();
-    expect($results)->toHaveKeys(['gzip', 'br']);
-    expect($results['gzip'])->toBeInstanceOf(CompressionResult::class);
-    expect($results['br'])->toBeInstanceOf(CompressionResult::class);
+    expect($results)->toHaveCount(1);
+
+    $result = array_values($results)[0];
+    expect($result)->toBeInstanceOf(Result::class);
+    expect($result->isOk())->toBeTrue();
+
+    $compressed = $result->getCompressed();
+    expect($compressed)->toHaveKey('gzip');
+    expect($compressed)->toHaveKey('br');
 })->skip(!extension_loaded('brotli'), 'Brotli extension not available');
 
 // 2.3. Single data + algorithms with levels
 test('compress single data with algorithms and custom levels', function () {
-    $results = Compressor::compress('Test data', [
-        CompressionAlgorithmEnum::Gzip => 5,
-        CompressionAlgorithmEnum::Brotli => 6,
+    $builder = new Builder();
+    $builder->add('Test data', [
+        'gzip' => 5,
+        'br' => 6,
     ]);
+    $results = $builder->compress();
 
     expect($results)->toBeArray();
-    expect($results)->toHaveKeys(['gzip', 'br']);
-    expect($results['gzip']->algorithm)->toBe(CompressionAlgorithmEnum::Gzip);
-    expect($results['br']->algorithm)->toBe(CompressionAlgorithmEnum::Brotli);
+    expect($results)->toHaveCount(1);
+
+    $result = array_values($results)[0];
+    expect($result)->toBeInstanceOf(Result::class);
+    expect($result->isOk())->toBeTrue();
+
+    $compressed = $result->getCompressed();
+    expect($compressed)->toHaveKey('gzip');
+    expect($compressed)->toHaveKey('br');
 })->skip(!extension_loaded('brotli'), 'Brotli extension not available');
 
 // Array of data + multiple algorithms
 test('compress array of data with multiple algorithms', function () {
-    $results = Compressor::compress(
-        ['data1', 'data2'],
-        [CompressionAlgorithmEnum::Gzip, CompressionAlgorithmEnum::Brotli]
-    );
+    $builder = new Builder();
+    $builder->addMany(['data1', 'data2'], [AlgorithmEnum::Gzip, AlgorithmEnum::Brotli]);
+    $results = $builder->compress();
 
     expect($results)->toBeArray();
     expect($results)->toHaveCount(2);
 
-    foreach ($results as $dataResults) {
-        expect($dataResults)->toBeArray();
-        expect($dataResults)->toHaveKeys(['gzip', 'br']);
+    foreach ($results as $result) {
+        expect($result)->toBeInstanceOf(Result::class);
+        expect($result->isOk())->toBeTrue();
+
+        $compressed = $result->getCompressed();
+        expect($compressed)->toHaveKey('gzip');
+        expect($compressed)->toHaveKey('br');
     }
 })->skip(!extension_loaded('brotli'), 'Brotli extension not available');
 
 // Decompression tests
 test('decompress single data with single algorithm', function () {
-    $compressed = Compressor::compress('Hello!', CompressionAlgorithmEnum::Gzip);
-    $decompressed = Compressor::decompress($compressed->content, CompressionAlgorithmEnum::Gzip);
+    $builder = new Builder();
+    $builder->add('Hello!', AlgorithmEnum::Gzip);
+    $results = $builder->compress();
+
+    $result = array_values($results)[0];
+    $compressed = $result->getCompressed()['gzip'];
+
+    $compressor = Factory::create(AlgorithmEnum::Gzip);
+    $decompressed = $compressor->decompress($compressed);
 
     expect($decompressed)->toBe('Hello!');
 });
 
 test('decompress array of data with single algorithm', function () {
     $data = ['data1', 'data2'];
-    $compressed = Compressor::compress($data, CompressionAlgorithmEnum::Gzip);
 
-    $compressedStrings = array_map(fn($r) => $r->content, $compressed);
-    $decompressed = Compressor::decompress($compressedStrings, CompressionAlgorithmEnum::Gzip);
+    $builder = new Builder();
+    $builder->addMany($data, AlgorithmEnum::Gzip);
+    $results = $builder->compress();
+
+    $compressor = Factory::create(AlgorithmEnum::Gzip);
+    $decompressed = [];
+
+    foreach ($results as $result) {
+        $compressed = $result->getCompressed()['gzip'];
+        $decompressed[] = $compressor->decompress($compressed);
+    }
 
     expect($decompressed)->toBe($data);
 });
 
 test('compress with associative keys preserves keys', function () {
     $data = ['key1' => 'value1', 'key2' => 'value2'];
-    $results = Compressor::compress($data, CompressionAlgorithmEnum::Gzip);
+
+    $builder = new Builder();
+    foreach ($data as $key => $value) {
+        $builder->add($value, AlgorithmEnum::Gzip, $key);
+    }
+    $results = $builder->compress();
 
     expect($results)->toHaveKeys(['key1', 'key2']);
 });
@@ -166,8 +224,14 @@ test('compress file without file:// prefix works', function () {
     $file = $this->testDir . '/test.txt';
     file_put_contents($file, 'Content');
 
-    $result = Compressor::compress($file, CompressionAlgorithmEnum::Gzip);
+    $builder = new Builder();
+    $builder->addFile($file, AlgorithmEnum::Gzip);
+    $results = $builder->compress();
 
-    expect($result)->toBeInstanceOf(CompressionResult::class);
-    expect($result->isFile)->toBeTrue();
+    expect($results)->toBeArray();
+    expect($results)->toHaveCount(1);
+
+    $result = array_values($results)[0];
+    expect($result)->toBeInstanceOf(Result::class);
+    expect($result->isOk())->toBeTrue();
 });

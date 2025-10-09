@@ -1,29 +1,29 @@
 <?php
 
-use Ayrunx\HttpCompression\CompressionAlgorithmEnum;
-use Ayrunx\HttpCompression\CompressorFactory;
-use Ayrunx\HttpCompression\GzipCompressor;
-use Ayrunx\HttpCompression\BrotliCompressor;
+use Ayrunx\HttpCompression\AlgorithmEnum;
+use Ayrunx\HttpCompression\Factory;
+use Ayrunx\HttpCompression\Compressor\GzipCompressor;
+use Ayrunx\HttpCompression\Compressor\BrotliCompressor;
 use Ayrunx\HttpCompression\CompressorInterface;
 
 test('factory creates gzip compressor', function () {
-    $compressor = CompressorFactory::create(CompressionAlgorithmEnum::Gzip);
+    $compressor = Factory::create(AlgorithmEnum::Gzip);
 
     expect($compressor)->toBeInstanceOf(CompressorInterface::class);
     expect($compressor)->toBeInstanceOf(GzipCompressor::class);
-    expect($compressor->getAlgorithm())->toBe(CompressionAlgorithmEnum::Gzip);
+    expect($compressor->getAlgorithm())->toBe(AlgorithmEnum::Gzip);
 });
 
 test('factory creates brotli compressor', function () {
-    $compressor = CompressorFactory::create(CompressionAlgorithmEnum::Brotli);
+    $compressor = Factory::create(AlgorithmEnum::Brotli);
 
     expect($compressor)->toBeInstanceOf(CompressorInterface::class);
     expect($compressor)->toBeInstanceOf(BrotliCompressor::class);
-    expect($compressor->getAlgorithm())->toBe(CompressionAlgorithmEnum::Brotli);
+    expect($compressor->getAlgorithm())->toBe(AlgorithmEnum::Brotli);
 });
 
 test('compressor instance can be used directly', function () {
-    $compressor = CompressorFactory::create(CompressionAlgorithmEnum::Gzip);
+    $compressor = Factory::create(AlgorithmEnum::Gzip);
     $content = 'Direct usage test';
 
     $compressed = $compressor->compress($content);

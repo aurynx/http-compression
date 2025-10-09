@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Ayrunx\HttpCompression\Compressor;
 
-use Ayrunx\HttpCompression\CompressionAlgorithmEnum;
-use Ayrunx\HttpCompression\CompressionErrorCode;
+use Ayrunx\HttpCompression\AlgorithmEnum;
+use Ayrunx\HttpCompression\ErrorCode;
 use Ayrunx\HttpCompression\CompressionException;
 use Ayrunx\HttpCompression\CompressorInterface;
 
@@ -19,7 +19,7 @@ final class GzipCompressor implements CompressorInterface
             $ext = $algorithm->getRequiredExtension();
             throw new CompressionException(
                 sprintf('%s extension not available; install/enable ext-%s', $ext, $ext),
-                CompressionErrorCode::ALGORITHM_UNAVAILABLE->value
+                ErrorCode::ALGORITHM_UNAVAILABLE->value
             );
         }
 
@@ -31,7 +31,7 @@ final class GzipCompressor implements CompressorInterface
         if ($result === false) {
             throw new CompressionException(
                 'Gzip compression failed',
-                CompressionErrorCode::COMPRESSION_FAILED->value
+                ErrorCode::COMPRESSION_FAILED->value
             );
         }
 
@@ -46,7 +46,7 @@ final class GzipCompressor implements CompressorInterface
             $ext = $algorithm->getRequiredExtension();
             throw new CompressionException(
                 sprintf('%s extension not available; install/enable ext-%s', $ext, $ext),
-                CompressionErrorCode::ALGORITHM_UNAVAILABLE->value
+                ErrorCode::ALGORITHM_UNAVAILABLE->value
             );
         }
 
@@ -55,15 +55,15 @@ final class GzipCompressor implements CompressorInterface
         if ($result === false) {
             throw new CompressionException(
                 'Gzip decompression failed',
-                CompressionErrorCode::DECOMPRESSION_FAILED->value
+                ErrorCode::DECOMPRESSION_FAILED->value
             );
         }
 
         return $result;
     }
 
-    public function getAlgorithm(): CompressionAlgorithmEnum
+    public function getAlgorithm(): AlgorithmEnum
     {
-        return CompressionAlgorithmEnum::Gzip;
+        return AlgorithmEnum::Gzip;
     }
 }

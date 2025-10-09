@@ -15,7 +15,7 @@ namespace Ayrunx\HttpCompression;
  * - isError(): bool - true when complete failure (no algorithms succeeded)
  * - getCompressed(): array<string, string> - all successful compressed payloads
  */
-final readonly class CompressionResult
+final readonly class Result
 {
     /**
      * @param string $identifier Item identifier
@@ -34,9 +34,9 @@ final readonly class CompressionResult
     /**
      * Create a result representing a complete error
      */
-    public static function createError(string $identifier, CompressionException $error): self
+    public static function createError(string $identifier, CompressionException $error): Result
     {
-        return new self($identifier, [], $error);
+        return new Result($identifier, [], $error);
     }
 
     /**
@@ -50,8 +50,8 @@ final readonly class CompressionResult
         string $identifier,
         array $compressed,
         array $algorithmErrors
-    ): self {
-        return new self($identifier, $compressed, null, $algorithmErrors);
+    ): Result {
+        return new Result($identifier, $compressed, null, $algorithmErrors);
     }
 
     public function getIdentifier(): string
@@ -60,7 +60,7 @@ final readonly class CompressionResult
     }
 
     /** Get compressed content for a specific algorithm */
-    public function getCompressedFor(CompressionAlgorithmEnum $algorithm): ?string
+    public function getCompressedFor(AlgorithmEnum $algorithm): ?string
     {
         return $this->compressed[$algorithm->value] ?? null;
     }
@@ -82,7 +82,7 @@ final readonly class CompressionResult
     }
 
     /** Check if the algorithm was used for compression */
-    public function hasAlgorithm(CompressionAlgorithmEnum $algorithm): bool
+    public function hasAlgorithm(AlgorithmEnum $algorithm): bool
     {
         return isset($this->compressed[$algorithm->value]);
     }
@@ -165,7 +165,7 @@ final readonly class CompressionResult
     }
 
     /** Check if a specific algorithm failed */
-    public function hasAlgorithmError(CompressionAlgorithmEnum $algorithm): bool
+    public function hasAlgorithmError(AlgorithmEnum $algorithm): bool
     {
         return isset($this->algorithmErrors[$algorithm->value]);
     }
@@ -175,7 +175,7 @@ final readonly class CompressionResult
      *
      * @return array{code:int, message:string}|null
      */
-    public function getAlgorithmError(CompressionAlgorithmEnum $algorithm): ?array
+    public function getAlgorithmError(AlgorithmEnum $algorithm): ?array
     {
         return $this->algorithmErrors[$algorithm->value] ?? null;
     }

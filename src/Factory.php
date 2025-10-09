@@ -7,19 +7,20 @@ namespace Ayrunx\HttpCompression;
 use Ayrunx\HttpCompression\Compressor\BrotliCompressor;
 use Ayrunx\HttpCompression\Compressor\GzipCompressor;
 
-final class CompressorFactory
+final class Factory
 {
     /**
      * Create a compressor instance for the specified algorithm
      *
-     * @param CompressionAlgorithmEnum $algorithm
+     * @param AlgorithmEnum  $algorithm
+     *
      * @return CompressorInterface
      */
-    public static function create(CompressionAlgorithmEnum $algorithm): CompressorInterface
+    public static function create(AlgorithmEnum $algorithm): CompressorInterface
     {
         return match ($algorithm) {
-            CompressionAlgorithmEnum::Gzip => new GzipCompressor(),
-            CompressionAlgorithmEnum::Brotli => new BrotliCompressor(),
+            AlgorithmEnum::Gzip   => new GzipCompressor(),
+            AlgorithmEnum::Brotli => new BrotliCompressor(),
         };
     }
 }

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Ayrunx\HttpCompression;
 
-enum CompressionAlgorithmEnum: string
+enum AlgorithmEnum: string
 {
     case Gzip = 'gzip';
     case Brotli = 'br';
@@ -69,7 +69,7 @@ enum CompressionAlgorithmEnum: string
                     $this->getMinLevel(),
                     $this->getMaxLevel()
                 ),
-                CompressionErrorCode::LEVEL_OUT_OF_RANGE->value
+                ErrorCode::LEVEL_OUT_OF_RANGE->value
             );
         }
     }

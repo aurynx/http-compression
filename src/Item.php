@@ -7,7 +7,7 @@ namespace Ayrunx\HttpCompression;
 /**
  * Represents a single item to be compressed
  */
-final readonly class CompressionItem
+final readonly class Item
 {
     /** @var int Default max size: 50MB */
     private const int DEFAULT_MAX_SIZE = 50 * 1024 * 1024;
@@ -53,7 +53,7 @@ final readonly class CompressionItem
         if (!file_exists($this->content)) {
             throw new CompressionException(
                 sprintf('File not found: %s', $this->content),
-                CompressionErrorCode::FILE_NOT_FOUND->value
+                ErrorCode::FILE_NOT_FOUND->value
             );
         }
 
@@ -62,7 +62,7 @@ final readonly class CompressionItem
         if ($size === false) {
             throw new CompressionException(
                 sprintf('Failed to get file size: %s (check permissions/SELinux)', $this->content),
-                CompressionErrorCode::FILE_NOT_READABLE->value
+                ErrorCode::FILE_NOT_READABLE->value
             );
         }
 
@@ -86,7 +86,7 @@ final readonly class CompressionItem
                         $this->maxSize,
                         $this->content
                     ),
-                    CompressionErrorCode::PAYLOAD_TOO_LARGE->value
+                    ErrorCode::PAYLOAD_TOO_LARGE->value
                 );
             }
 
@@ -96,7 +96,7 @@ final readonly class CompressionItem
                     $size,
                     $this->maxSize
                 ),
-                CompressionErrorCode::PAYLOAD_TOO_LARGE->value
+                ErrorCode::PAYLOAD_TOO_LARGE->value
             );
         }
     }
@@ -116,14 +116,14 @@ final readonly class CompressionItem
         if (!file_exists($this->content)) {
             throw new CompressionException(
                 sprintf('File not found: %s', $this->content),
-                CompressionErrorCode::FILE_NOT_FOUND->value
+                ErrorCode::FILE_NOT_FOUND->value
             );
         }
 
         if (!is_readable($this->content)) {
             throw new CompressionException(
                 sprintf('File not readable: %s (check permissions/SELinux)', $this->content),
-                CompressionErrorCode::FILE_NOT_READABLE->value
+                ErrorCode::FILE_NOT_READABLE->value
             );
         }
 
@@ -134,7 +134,7 @@ final readonly class CompressionItem
         if ($content === false) {
             throw new CompressionException(
                 sprintf('Failed to read file: %s (check permissions/SELinux)', $this->content),
-                CompressionErrorCode::FILE_NOT_READABLE->value
+                ErrorCode::FILE_NOT_READABLE->value
             );
         }
 

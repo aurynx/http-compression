@@ -7,7 +7,7 @@ namespace Ayrunx\HttpCompression;
 /**
  * Machine-readable error codes for compression exceptions
  */
-enum CompressionErrorCode: int
+enum ErrorCode: int
 {
     case UNKNOWN_ALGORITHM = 1001;
     case ALGORITHM_UNAVAILABLE = 1002;

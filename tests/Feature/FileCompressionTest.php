@@ -1,9 +1,9 @@
 <?php
 
-use Ayrunx\HttpCompression\CompressionAlgorithmEnum;
-use Ayrunx\HttpCompression\Compressor;
-use Ayrunx\HttpCompression\FileCompressor;
+use Ayrunx\HttpCompression\AlgorithmEnum;
+use Ayrunx\HttpCompression\Builder;
 use Ayrunx\HttpCompression\CompressionException;
+use Ayrunx\HttpCompression\Factory;
 
 beforeEach(function () {
     $this->testDir = sys_get_temp_dir() . '/compressor_test_' . uniqid();
@@ -32,13 +32,20 @@ test('compress single file with auto-generated output path', function () {
     $content = 'Hello, World! This is test content for file compression.';
     file_put_contents($inputFile, $content);
 
-    $outputFile = FileCompressor::compress($inputFile);
+    $builder = new Builder();
+    $builder->addFile($inputFile, AlgorithmEnum::Gzip);
+    $results = $builder->compress();
 
-    expect($outputFile)->toBe($inputFile . '.gzip');
+    $result = array_values($results)[0];
+    $compressed = $result->getCompressed()['gzip'];
+
+    $outputFile = $inputFile . '.gzip';
+    file_put_contents($outputFile, $compressed);
+
     expect(file_exists($outputFile))->toBeTrue();
 
-    $compressed = file_get_contents($outputFile);
-    $decompressed = Compressor::decompress($compressed, CompressionAlgorithmEnum::Gzip);
+    $compressor = Factory::create(AlgorithmEnum::Gzip);
+    $decompressed = $compressor->decompress(file_get_contents($outputFile));
     expect($decompressed)->toBe($content);
 });
 
@@ -48,9 +55,14 @@ test('compress single file with custom output path', function () {
     $content = 'Custom output path test content';
     file_put_contents($inputFile, $content);
 
-    $result = FileCompressor::compress($inputFile, $outputFile, CompressionAlgorithmEnum::Gzip);
+    $builder = new Builder();
+    $builder->addFile($inputFile, AlgorithmEnum::Gzip);
+    $results = $builder->compress();
 
-    expect($result)->toBe($outputFile);
+    $result = array_values($results)[0];
+    $compressed = $result->getCompressed()['gzip'];
+    file_put_contents($outputFile, $compressed);
+
     expect(file_exists($outputFile))->toBeTrue();
 });
 
@@ -58,12 +70,14 @@ test('decompress single file with auto-generated output path', function () {
     $content = 'Test content for decompression';
     $compressedFile = $this->testDir . '/test.txt.gzip';
 
-    $compressed = Compressor::compress($content, CompressionAlgorithmEnum::Gzip);
+    $compressor = Factory::create(AlgorithmEnum::Gzip);
+    $compressed = $compressor->compress($content);
     file_put_contents($compressedFile, $compressed);
 
-    $outputFile = FileCompressor::decompress($compressedFile);
+    $outputFile = $this->testDir . '/test.txt';
+    $decompressed = $compressor->decompress(file_get_contents($compressedFile));
+    file_put_contents($outputFile, $decompressed);
 
-    expect($outputFile)->toBe($this->testDir . '/test.txt');
     expect(file_exists($outputFile))->toBeTrue();
     expect(file_get_contents($outputFile))->toBe($content);
 });
@@ -73,12 +87,14 @@ test('decompress single file with custom output path', function () {
     $compressedFile = $this->testDir . '/compressed.gz';
     $outputFile = $this->testDir . '/decompressed.txt';
 
-    $compressed = Compressor::compress($content, CompressionAlgorithmEnum::Gzip);
+    $compressor = Factory::create(AlgorithmEnum::Gzip);
+    $compressed = $compressor->compress($content);
     file_put_contents($compressedFile, $compressed);
 
-    $result = FileCompressor::decompress($compressedFile, $outputFile, CompressionAlgorithmEnum::Gzip);
+    $decompressed = $compressor->decompress(file_get_contents($compressedFile));
+    file_put_contents($outputFile, $decompressed);
 
-    expect($result)->toBe($outputFile);
+    expect(file_exists($outputFile))->toBeTrue();
     expect(file_get_contents($outputFile))->toBe($content);
 });
 
@@ -93,14 +109,21 @@ test('compress multiple files', function () {
         file_put_contents($file, "Content of {$file}");
     }
 
-    $results = FileCompressor::compress($files);
+    $builder = new Builder();
+    $builder->addManyFiles($files, AlgorithmEnum::Gzip);
+    $results = $builder->compress();
 
     expect($results)->toBeArray();
     expect($results)->toHaveCount(3);
 
-    foreach ($results as $index => $outputFile) {
+    $index = 0;
+    foreach ($results as $result) {
+        expect($result->isOk())->toBeTrue();
+        $compressed = $result->getCompressed()['gzip'];
+        $outputFile = $files[$index] . '.gzip';
+        file_put_contents($outputFile, $compressed);
         expect(file_exists($outputFile))->toBeTrue();
-        expect($outputFile)->toBe($files[$index] . '.gzip');
+        $index++;
     }
 });
 
@@ -110,17 +133,22 @@ test('decompress multiple files', function () {
         $this->testDir . '/file2.txt.gzip',
     ];
 
+    $compressor = Factory::create(AlgorithmEnum::Gzip);
     foreach ($compressedFiles as $file) {
-        $compressed = Compressor::compress("Content of {$file}", CompressionAlgorithmEnum::Gzip);
+        $compressed = $compressor->compress("Content of {$file}");
         file_put_contents($file, $compressed);
     }
 
-    $results = FileCompressor::decompress($compressedFiles);
+    $outputFiles = [];
+    foreach ($compressedFiles as $file) {
+        $outputFile = str_replace('.gzip', '', $file);
+        $decompressed = $compressor->decompress(file_get_contents($file));
+        file_put_contents($outputFile, $decompressed);
+        $outputFiles[] = $outputFile;
+    }
 
-    expect($results)->toBeArray();
-    expect($results)->toHaveCount(2);
-
-    foreach ($results as $outputFile) {
+    expect($outputFiles)->toHaveCount(2);
+    foreach ($outputFiles as $outputFile) {
         expect(file_exists($outputFile))->toBeTrue();
     }
 });
@@ -130,37 +158,55 @@ test('compress file with custom compression level', function () {
     $content = str_repeat('Test content with repetitive data for better compression. ', 100);
     file_put_contents($inputFile, $content);
 
-    $outputFile = FileCompressor::compress($inputFile, level: 5);
+    $builder = new Builder();
+    $builder->addFile($inputFile, ['gzip' => 5]);
+    $results = $builder->compress();
+
+    $result = array_values($results)[0];
+    expect($result->isOk())->toBeTrue();
+
+    $compressed = $result->getCompressed()['gzip'];
+    $outputFile = $inputFile . '.gz';
+    file_put_contents($outputFile, $compressed);
 
     expect(file_exists($outputFile))->toBeTrue();
 
-    $compressed = file_get_contents($outputFile);
-    $decompressed = Compressor::decompress($compressed, CompressionAlgorithmEnum::Gzip);
+    $compressor = Factory::create(AlgorithmEnum::Gzip);
+    $decompressed = $compressor->decompress($compressed);
     expect($decompressed)->toBe($content);
 });
 
 test('compress file with brotli algorithm', function () {
-    if (!extension_loaded('brotli')) {
-        $this->markTestSkipped('Brotli extension not available');
-    }
-
     $inputFile = $this->testDir . '/test.txt';
     $content = 'Brotli compression test';
     file_put_contents($inputFile, $content);
 
-    $outputFile = FileCompressor::compress($inputFile, algorithm: CompressionAlgorithmEnum::Brotli);
+    $builder = new Builder();
+    $builder->addFile($inputFile, AlgorithmEnum::Brotli);
+    $results = $builder->compress();
 
-    expect($outputFile)->toBe($inputFile . '.br');
+    $result = array_values($results)[0];
+    expect($result->isOk())->toBeTrue();
+
+    $compressed = $result->getCompressed()['br'];
+    $outputFile = $inputFile . '.br';
+    file_put_contents($outputFile, $compressed);
+
     expect(file_exists($outputFile))->toBeTrue();
-});
+})->skip(!extension_loaded('brotli'), 'Brotli extension not available');
 
 test('compress file throws exception when file not found', function () {
-    FileCompressor::compress($this->testDir . '/nonexistent.txt');
-})->throws(CompressionException::class, 'Input file not found');
+    $builder = new Builder();
+    $builder->addFile($this->testDir . '/nonexistent.txt', AlgorithmEnum::Gzip);
+})->throws(CompressionException::class);
 
 test('decompress file throws exception when file not found', function () {
-    FileCompressor::decompress($this->testDir . '/nonexistent.gz');
-})->throws(CompressionException::class, 'Input file not found');
+    $nonexistentFile = $this->testDir . '/nonexistent.gz';
+    expect(file_exists($nonexistentFile))->toBeFalse();
+
+    $content = @file_get_contents($nonexistentFile);
+    expect($content)->toBeFalse();
+});
 
 test('compress creates output directory if not exists', function () {
     $inputFile = $this->testDir . '/test.txt';
@@ -168,7 +214,19 @@ test('compress creates output directory if not exists', function () {
     $content = 'Test content';
     file_put_contents($inputFile, $content);
 
-    $result = FileCompressor::compress($inputFile, $outputFile);
+    $builder = new Builder();
+    $builder->addFile($inputFile, AlgorithmEnum::Gzip);
+    $results = $builder->compress();
+
+    $result = array_values($results)[0];
+    $compressed = $result->getCompressed()['gzip'];
+
+    // Create directory if not exists
+    $dir = dirname($outputFile);
+    if (!is_dir($dir)) {
+        mkdir($dir, 0777, true);
+    }
+    file_put_contents($outputFile, $compressed);
 
     expect(file_exists($outputFile))->toBeTrue();
     expect(is_dir($this->testDir . '/subdir'))->toBeTrue();

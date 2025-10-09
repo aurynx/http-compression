@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use Ayrunx\HttpCompression\CompressionAlgorithmEnum as Algo;
-use Ayrunx\HttpCompression\CompressionBuilder;
-use Ayrunx\HttpCompression\CompressionErrorCode as Err;
-use Ayrunx\HttpCompression\CompressionResult;
+use Ayrunx\HttpCompression\AlgorithmEnum as Algo;
+use Ayrunx\HttpCompression\Builder;
+use Ayrunx\HttpCompression\ErrorCode as Err;
+use Ayrunx\HttpCompression\Result as Result;
 
 it('keeps codes for partial errors (brotli unavailable)', function () {
-    $builder = new CompressionBuilder();
+    $builder = new Builder();
     $builder->setFailFast(false);
     // both algorithms; gzip should succeed, brotli may be unavailable on CI
     $builder->withDefaultAlgorithms([
@@ -21,7 +21,7 @@ it('keeps codes for partial errors (brotli unavailable)', function () {
 
     expect($results)->toBeArray();
     $result = $results[array_key_first($results)];
-    expect($result)->toBeInstanceOf(CompressionResult::class);
+    expect($result)->toBeInstanceOf(Result::class);
     // If brotli is unavailable, we should have partial errors with structured entry for 'br'
     if (!extension_loaded('brotli')) {
         expect($result->isPartial())->toBeTrue();
@@ -38,7 +38,7 @@ it('keeps codes for partial errors (brotli unavailable)', function () {
 });
 
 it('keeps code for complete failure (all algorithms fail)', function () {
-    $builder = new CompressionBuilder();
+    $builder = new Builder();
     $builder->setFailFast(false);
     // Only brotli; when unavailable, complete failure is expected
     $builder->withDefaultAlgorithms(['br' => Algo::Brotli->getDefaultLevel()]);
@@ -48,7 +48,7 @@ it('keeps code for complete failure (all algorithms fail)', function () {
 
     expect($results)->toBeArray();
     $result = $results[array_key_first($results)];
-    expect($result)->toBeInstanceOf(CompressionResult::class);
+    expect($result)->toBeInstanceOf(Result::class);
 
     if (!extension_loaded('brotli')) {
         expect($result->isError())->toBeTrue();

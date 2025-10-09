@@ -28,5 +28,5 @@ interface CompressorInterface
     /**
      * Get the algorithm type
      */
-    public function getAlgorithm(): CompressionAlgorithmEnum;
+    public function getAlgorithm(): AlgorithmEnum;
 }
