@@ -1,6 +1,19 @@
 {
     "name": "ayrunx/http-compression",
-    "description": "Framework-agnostic HTTP compression library (gzip, brotli)",
+    "description": "Framework-agnostic HTTP compression for PHP (gzip, brotli) with deterministic builds and safe file precompression.",
+    "keywords": [
+        "http",
+        "compression",
+        "compressor",
+        "gzip",
+        "brotli",
+        "br",
+        "static",
+        "nginx",
+        "content-encoding",
+        "php",
+        "aurynx"
+    ],
     "type": "library",
     "license": "MIT",
     "autoload": {
