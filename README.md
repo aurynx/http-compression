@@ -2,7 +2,5 @@
 Framework-agnostic PHP library for efficient HTTP compression (gzip, brotli) — simple, safe, and deterministic.
 
 <p align="center">
-  <picture>
-    <img alt="http-compression mascot" src="docs/branding/mascot.png" width="1024" style="inline-size: auto; max-block-size: 400px;" />
-  </picture>
+  <img width="256" height="256" alt="Aurynx Mascot" src="https://github.com/user-attachments/assets/80a3ece6-5c50-4b01-9aee-7f086b55a0ef" />
 </p>
