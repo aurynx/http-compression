@@ -16,8 +16,9 @@ final class BrotliCompressor implements CompressorInterface
         $algorithm = $this->getAlgorithm();
 
         if (!$algorithm->isAvailable()) {
+            $ext = $algorithm->getRequiredExtension();
             throw new CompressionException(
-                sprintf('%s extension not available', $algorithm->getRequiredExtension()),
+                sprintf('%s extension not available; install/enable ext-%s', $ext, $ext),
                 CompressionErrorCode::ALGORITHM_UNAVAILABLE->value
             );
         }
@@ -42,8 +43,9 @@ final class BrotliCompressor implements CompressorInterface
         $algorithm = $this->getAlgorithm();
 
         if (!$algorithm->isAvailable()) {
+            $ext = $algorithm->getRequiredExtension();
             throw new CompressionException(
-                sprintf('%s extension not available', $algorithm->getRequiredExtension()),
+                sprintf('%s extension not available; install/enable ext-%s', $ext, $ext),
                 CompressionErrorCode::ALGORITHM_UNAVAILABLE->value
             );
         }

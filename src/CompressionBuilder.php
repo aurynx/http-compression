@@ -314,7 +314,10 @@ final class CompressionBuilder implements Countable, IteratorAggregate
     /**
      * Configure the last added item (chainable)
      *
-     * After delete(), this points to the last remaining item in the builder.
+     * Definition of "last": the item that is last by insertion order.
+     * PHP arrays preserve insertion order, and after deletions this method
+     * refers to the last remaining item by that order (array_key_last()).
+     *
      * If all items were deleted, throws an exception.
      *
      * @return CompressionItemConfigurator
@@ -509,8 +512,9 @@ final class CompressionBuilder implements Countable, IteratorAggregate
                 if (!$algorithm->isAvailable()) {
                     throw new CompressionException(
                         sprintf(
-                            'Algorithm %s requires %s extension',
+                            'Algorithm %s requires %s extension; install/enable ext-%s',
                             $algorithm->name,
+                            $algorithm->getRequiredExtension(),
                             $algorithm->getRequiredExtension()
                         ),
                         CompressionErrorCode::ALGORITHM_UNAVAILABLE->value
@@ -519,7 +523,7 @@ final class CompressionBuilder implements Countable, IteratorAggregate
 
                 $compressor = CompressorFactory::create($algorithm);
 
-                // Prefer a streaming path for files if supported by compressor
+                // Prefer a streaming path for files if supported by the compressor
                 if ($item->isFile() && $compressor instanceof StreamCompressorInterface) {
                     $fp = @fopen($item->getContent(), 'rb');
 
