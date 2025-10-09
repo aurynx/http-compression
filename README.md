@@ -10,6 +10,13 @@
 </p>
 
 <p align="center">
+  <a href="https://packagist.org/packages/ayrunx/http-compression"><img src="https://img.shields.io/packagist/v/ayrunx/http-compression.svg?style=flat-square" alt="Latest Version on Packagist"></a>
+  <a href="https://packagist.org/packages/ayrunx/http-compression"><img src="https://img.shields.io/packagist/dt/ayrunx/http-compression.svg?style=flat-square" alt="Total Downloads"></a>
+  <a href="https://packagist.org/packages/ayrunx/http-compression"><img src="https://img.shields.io/packagist/php-v/ayrunx/http-compression.svg?style=flat-square" alt="PHP Version"></a>
+  <a href="https://github.com/ayrunx/http-compression/blob/main/LICENSE"><img src="https://img.shields.io/packagist/l/ayrunx/http-compression.svg?style=flat-square" alt="License"></a>
+</p>
+
+<p align="center">
   <a href="#installation">Installation</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="#features">Features</a> •
