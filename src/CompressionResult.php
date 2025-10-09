@@ -83,7 +83,7 @@ final readonly class CompressionResult
     }
 
     /**
-     * Check if algorithm was used for compression
+     * Check if the algorithm was used for compression
      */
     public function hasAlgorithm(CompressionAlgorithmEnum $algorithm): bool
     {
@@ -91,7 +91,7 @@ final readonly class CompressionResult
     }
 
     /**
-     * Get list of algorithms used
+     * Get a list of algorithms used
      *
      * @return string[]
      */
@@ -149,7 +149,7 @@ final readonly class CompressionResult
     }
 
     /**
-     * Get error message if this result failed
+     * Get an error message if this result failed
      *
      * @return string|null
      */
@@ -161,7 +161,7 @@ final readonly class CompressionResult
     /**
      * Get all error messages (both complete and per-algorithm)
      *
-     * Returns empty array on full success.
+     * Returns an empty array on full success.
      * Always safe to call without checking isError() first.
      *
      * @return array<string, string> Map of algorithm => error message, or ['_error' => message] for complete failure
@@ -207,7 +207,7 @@ final readonly class CompressionResult
     }
 
     /**
-     * Get error message for a specific algorithm
+     * Get an error message for a specific algorithm
      *
      * @param CompressionAlgorithmEnum $algorithm
      * @return string|null

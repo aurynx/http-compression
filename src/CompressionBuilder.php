@@ -4,10 +4,18 @@ declare(strict_types=1);
 
 namespace Ayrunx\HttpCompression;
 
+use ArrayIterator;
+use Countable;
+use Exception;
+use IteratorAggregate;
+use JsonException;
+use Traversable;
+use ValueError;
+
 /**
  * Fluent API builder for compression operations
  */
-final class CompressionBuilder implements \Countable, \IteratorAggregate
+final class CompressionBuilder implements Countable, IteratorAggregate
 {
     /** @var array<string, CompressionItem> */
     private array $items = [];
@@ -24,12 +32,21 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
     /** @var array<string, int>|null Default algorithms for all items */
     private ?array $defaultAlgorithms = null;
 
+    /** Optional max payload size limit in bytes (null = default per item) */
+    private ?int $maxBytes;
+
+    public function __construct(?int $maxBytes = null)
+    {
+        $this->maxBytes = $maxBytes;
+    }
+
     /**
      * Add raw content for compression
      *
-     * @param string $content Raw content to compress
-     * @param CompressionAlgorithmEnum|iterable<CompressionAlgorithmEnum|string, int>|null $algorithms
-     * @param string|null $customIdentifier Optional custom identifier for the item
+     * @param  string  $content  Raw content to compress
+     * @param  CompressionAlgorithmEnum|iterable|null  $algorithms
+     * @param  string|null  $customIdentifier  Optional custom identifier for the item
+     *
      * @return self
      */
     public function add(
@@ -46,7 +63,7 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
             );
         }
 
-        $this->items[$identifier] = new CompressionItem($content, false, $identifier);
+        $this->items[$identifier] = new CompressionItem($content, false, $identifier, $this->maxBytes);
         $this->algorithms[$identifier] = $this->resolveAlgorithms($algorithms);
         $this->lastAddedIdentifier = $identifier;
 
@@ -54,13 +71,13 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
     }
 
     /**
-     * Add file for compression
+     * Add a file for compression
      *
-     * @param string $filePath Path to the file to compress
-     * @param CompressionAlgorithmEnum|iterable<CompressionAlgorithmEnum|string, int>|null $algorithms
-     * @param string|null $customIdentifier Optional custom identifier for the item
+     * @param  string  $filePath  Path to the file to compress
+     * @param  CompressionAlgorithmEnum|iterable|null  $algorithms
+     * @param  string|null  $customIdentifier  Optional custom identifier for the item
+     *
      * @return self
-     * @throws CompressionException if file does not exist or is not readable
      */
     public function addFile(
         string $filePath,
@@ -90,13 +107,13 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
             );
         }
 
-        // Normalize file path for stable logging
+        // Normalize a file path for stable logging
         $normalizedPath = realpath($filePath);
         if ($normalizedPath === false) {
             $normalizedPath = $filePath;
         }
 
-        $this->items[$identifier] = new CompressionItem($normalizedPath, true, $identifier);
+        $this->items[$identifier] = new CompressionItem($normalizedPath, true, $identifier, $this->maxBytes);
         $this->algorithms[$identifier] = $this->resolveAlgorithms($algorithms);
         $this->lastAddedIdentifier = $identifier;
 
@@ -106,8 +123,9 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
     /**
      * Add multiple items at once
      *
-     * @param iterable<array{content: string, algorithms?: CompressionAlgorithmEnum|iterable|null, identifier?: string|null}|string> $payloads
-     * @param CompressionAlgorithmEnum|iterable<CompressionAlgorithmEnum|string, int>|null $defaultAlgorithms
+     * @param  iterable<array{content: string, algorithms?: CompressionAlgorithmEnum|iterable|null, identifier?: string|null}|string>  $payloads
+     * @param  CompressionAlgorithmEnum|iterable|null  $defaultAlgorithms
+     *
      * @return self
      */
     public function addMany(
@@ -140,8 +158,9 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
     /**
      * Add multiple files at once
      *
-     * @param iterable<array{path: string, algorithms?: CompressionAlgorithmEnum|iterable|null, identifier?: string|null}|string> $payloads
-     * @param CompressionAlgorithmEnum|iterable<CompressionAlgorithmEnum|string, int>|null $defaultAlgorithms
+     * @param  iterable<array{path: string, algorithms?: CompressionAlgorithmEnum|iterable|null, identifier?: string|null}|string>  $payloads
+     * @param  CompressionAlgorithmEnum|iterable|null  $defaultAlgorithms
+     *
      * @return self
      */
     public function addManyFiles(
@@ -187,9 +206,10 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
      * Pass null to clear defaults.
      * Note: Empty arrays are not allowed and will throw CompressionException.
      *
-     * @param CompressionAlgorithmEnum|iterable<CompressionAlgorithmEnum|string, int>|null $algorithms
+     * @param  CompressionAlgorithmEnum|iterable|null  $algorithms
+     *
      * @return self
-     * @throws CompressionException if empty array is provided
+     * @throws JsonException
      */
     public function withDefaultAlgorithms(
         CompressionAlgorithmEnum|iterable|null $algorithms
@@ -245,10 +265,11 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
     /**
      * Replace algorithms for a specific item (no merge with defaults)
      *
-     * @param string $identifier
-     * @param CompressionAlgorithmEnum|iterable<CompressionAlgorithmEnum|string, int> $algorithms
+     * @param  string  $identifier
+     * @param  CompressionAlgorithmEnum|iterable  $algorithms
+     *
      * @return self
-     * @throws CompressionException if item not found or algorithms invalid
+     * @throws JsonException if item not found or algorithms invalid*@throws JsonException
      */
     public function replaceAlgorithms(
         string $identifier,
@@ -313,7 +334,7 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
      * Note: Empty arrays are not allowed.
      *
      * @internal Used by CompressionItemConfigurator
-     * @throws CompressionException if empty array is provided
+     * @throws CompressionException if an empty array is provided
      */
     public function updateAlgorithms(
         string $identifier,
@@ -348,7 +369,7 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
     /**
      * Delete an item by its identifier
      *
-     * If the deleted item was the last added, lastAddedIdentifier is updated to the
+     * If the deleted item was the last added, the lastAddedIdentifier is updated to the
      * last remaining item (or null if no items remain).
      *
      * @param string $identifier
@@ -368,7 +389,7 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
 
         // Update lastAddedIdentifier if we just deleted it
         if ($this->lastAddedIdentifier === $identifier) {
-            // Set to last remaining item, or null if empty
+            // Set to the last remaining item, or null if empty
             $this->lastAddedIdentifier = empty($this->items)
                 ? null
                 : array_key_last($this->items);
@@ -449,16 +470,31 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
      *
      * @param string $identifier
      * @param CompressionItem $item
+     *
      * @return CompressionResult
-     * @throws CompressionException if failFast is true and any algorithm fails
+     * @throws CompressionException|Exception if failFast is true and any algorithm fails
      */
     private function compressItem(string $identifier, CompressionItem $item): CompressionResult
     {
-        $content = $item->readContent();
+        // Avoid reading payload early; enforce limit first
         $algorithms = $this->algorithms[$identifier];
         $compressed = [];
         $algorithmErrors = [];
         $lastError = null;
+
+        // Enforce limit once before processing (applies to both raw and file)
+        try {
+            $item->ensureWithinLimit();
+        } catch (CompressionException $e) {
+            // Fail-fast behavior preserved
+            if ($this->failFast) {
+                throw $e;
+            }
+            // Collect as a complete failure
+            return CompressionResult::createError($identifier, $e);
+        }
+
+        $content = null; // lazy-load for a non-stream path
 
         foreach ($algorithms as $algorithmValue => $level) {
             try {
@@ -476,34 +512,51 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
                 }
 
                 $compressor = CompressorFactory::create($algorithm);
-                $compressed[$algorithmValue] = $compressor->compress($content, $level);
+
+                // Prefer a streaming path for files if supported by compressor
+                if ($item->isFile() && $compressor instanceof StreamCompressorInterface) {
+                    $fp = @fopen($item->getContent(), 'rb');
+
+                    if ($fp === false) {
+                        throw new CompressionException(
+                            sprintf('File not readable: %s', $item->getContent()),
+                            CompressionErrorCode::FILE_NOT_READABLE->value
+                        );
+                    }
+                    try {
+                        $compressed[$algorithmValue] = $compressor->compressStream($fp, $level);
+                    } finally {
+                        fclose($fp);
+                    }
+                } else {
+                    $content ??= $item->readContent();
+                    $compressed[$algorithmValue] = $compressor->compress($content, $level);
+                }
             } catch (CompressionException $e) {
                 $lastError = $e;
                 if ($this->failFast) {
                     throw $e;
                 }
-                // In non-failFast mode, track per-algorithm error
                 $algorithmErrors[$algorithmValue] = $e->getMessage();
-            } catch (\ValueError $e) {
+            } catch (ValueError $e) {
                 $lastError = new CompressionException(
                     sprintf('Unknown algorithm: %s', $algorithmValue),
                     CompressionErrorCode::UNKNOWN_ALGORITHM->value,
                     $e
                 );
+
                 if ($this->failFast) {
                     throw $lastError;
                 }
-                // Track per-algorithm error
+
                 $algorithmErrors[$algorithmValue] = $lastError->getMessage();
             }
         }
 
-        // If no algorithms succeeded, this is a complete failure
         if (empty($compressed) && $lastError !== null) {
             throw $lastError;
         }
 
-        // Return partial result if we have both successes and errors
         if (!empty($algorithmErrors)) {
             return CompressionResult::createPartial($identifier, $compressed, $algorithmErrors);
         }
@@ -539,11 +592,11 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
      * Implements IteratorAggregate interface.
      * Allows using builder in foreach loops.
      *
-     * @return \Traversable<string, CompressionItem>
+     * @return Traversable<string, CompressionItem>
      */
-    public function getIterator(): \Traversable
+    public function getIterator(): Traversable
     {
-        return new \ArrayIterator($this->items);
+        return new ArrayIterator($this->items);
     }
 
     /**
@@ -587,8 +640,10 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
      * If both defaults and item-specific algorithms are provided, they are merged.
      * Item-specific algorithms override defaults for the same algorithm type.
      *
-     * @param CompressionAlgorithmEnum|iterable<CompressionAlgorithmEnum|string, int>|null $algorithms
+     * @param  CompressionAlgorithmEnum|iterable|null  $algorithms
+     *
      * @return array<string, int>
+     * @throws JsonException
      */
     private function resolveAlgorithms(
         CompressionAlgorithmEnum|iterable|null $algorithms
@@ -622,9 +677,10 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
      *
      * Note: Empty arrays are not allowed and will throw CompressionException.
      *
-     * @param CompressionAlgorithmEnum|iterable<CompressionAlgorithmEnum|string, int>|null $algorithms
+     * @param  CompressionAlgorithmEnum|iterable|null  $algorithms
+     *
      * @return array<string, int>
-     * @throws CompressionException if algorithms specification is invalid or empty
+     * @throws JsonException
      */
     private function normalizeAlgorithms(
         CompressionAlgorithmEnum|iterable|null $algorithms
@@ -661,8 +717,8 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
                     $algorithm = CompressionAlgorithmEnum::from($value);
                     $level = $algorithm->getDefaultLevel();
                 } else {
-                    $contextKey = json_encode($key);
-                    $contextValue = json_encode($value);
+                    $contextKey = json_encode($key, JSON_THROW_ON_ERROR);
+                    $contextValue = json_encode($value, JSON_THROW_ON_ERROR);
                     throw new CompressionException(
                         sprintf('Invalid algorithm specification: key=%s, value=%s', $contextKey, $contextValue),
                         CompressionErrorCode::INVALID_ALGORITHM_SPEC->value
@@ -671,7 +727,7 @@ final class CompressionBuilder implements \Countable, \IteratorAggregate
 
                 $algorithm->validateLevel($level);
                 $normalized[$algorithm->value] = $level;
-            } catch (\ValueError $e) {
+            } catch (ValueError $e) {
                 // Extract the actual problematic value for better error messages
                 $rawValue = is_string($key) ? $key : (is_string($value) ? $value : json_encode([$key, $value]));
                 throw new CompressionException(

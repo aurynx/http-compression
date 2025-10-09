@@ -14,7 +14,7 @@ enum CompressionErrorCode: int
     case LEVEL_OUT_OF_RANGE = 1003;
     case FILE_NOT_FOUND = 1004;
     case FILE_NOT_READABLE = 1005;
-    case FILE_TOO_LARGE = 1006;
+    case PAYLOAD_TOO_LARGE = 1006;
     case COMPRESSION_FAILED = 1007;
     case DECOMPRESSION_FAILED = 1008;
     case DUPLICATE_IDENTIFIER = 1009;

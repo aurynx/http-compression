@@ -12,12 +12,15 @@ final readonly class CompressionItem
     /** @var int Default max size: 50MB */
     private const int DEFAULT_MAX_SIZE = 50 * 1024 * 1024;
 
+    private int $maxSize;
+
     public function __construct(
         private string $content,
         private bool $isFile,
         private ?string $identifier = null,
-        private int $maxSize = self::DEFAULT_MAX_SIZE
+        ?int $maxSize = null
     ) {
+        $this->maxSize = $maxSize ?? self::DEFAULT_MAX_SIZE;
     }
 
     public function getContent(): string
@@ -67,6 +70,38 @@ final readonly class CompressionItem
     }
 
     /**
+     * Ensure the payload is within the configured size limit
+     *
+     * @throws CompressionException
+     */
+    public function ensureWithinLimit(): void
+    {
+        $size = $this->isFile ? $this->size() : strlen($this->content);
+        if ($size > $this->maxSize) {
+            if ($this->isFile) {
+                throw new CompressionException(
+                    sprintf(
+                        'File size (%d bytes) exceeds maximum allowed (%d bytes): %s',
+                        $size,
+                        $this->maxSize,
+                        $this->content
+                    ),
+                    CompressionErrorCode::PAYLOAD_TOO_LARGE->value
+                );
+            }
+
+            throw new CompressionException(
+                sprintf(
+                    'Content size (%d bytes) exceeds maximum allowed (%d bytes)',
+                    $size,
+                    $this->maxSize
+                ),
+                CompressionErrorCode::PAYLOAD_TOO_LARGE->value
+            );
+        }
+    }
+
+    /**
      * Read file content if this is a file item
      *
      * @throws CompressionException
@@ -74,17 +109,7 @@ final readonly class CompressionItem
     public function readContent(): string
     {
         if (!$this->isFile) {
-            $size = strlen($this->content);
-            if ($size > $this->maxSize) {
-                throw new CompressionException(
-                    sprintf(
-                        'Content size (%d bytes) exceeds maximum allowed (%d bytes)',
-                        $size,
-                        $this->maxSize
-                    ),
-                    CompressionErrorCode::FILE_TOO_LARGE->value
-                );
-            }
+            $this->ensureWithinLimit();
             return $this->content;
         }
 
@@ -102,19 +127,7 @@ final readonly class CompressionItem
             );
         }
 
-        $size = $this->size();
-
-        if ($size > $this->maxSize) {
-            throw new CompressionException(
-                sprintf(
-                    'File size (%d bytes) exceeds maximum allowed (%d bytes): %s',
-                    $size,
-                    $this->maxSize,
-                    $this->content
-                ),
-                CompressionErrorCode::FILE_TOO_LARGE->value
-            );
-        }
+        $this->ensureWithinLimit();
 
         $content = file_get_contents($this->content);
 

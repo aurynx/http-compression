@@ -7,22 +7,23 @@ namespace Ayrunx\HttpCompression;
 /**
  * Fluent configurator for individual compression items
  */
-final class CompressionItemConfigurator
+final readonly class CompressionItemConfigurator
 {
     public function __construct(
-        private readonly CompressionBuilder $builder,
-        private readonly string $identifier
+        private CompressionBuilder $builder,
+        private string $identifier
     ) {
     }
 
     /**
      * Set algorithms for this specific item
      *
-     * @param CompressionAlgorithmEnum|array<CompressionAlgorithmEnum|string, int>|null $algorithms
+     * @param  CompressionAlgorithmEnum|iterable|null  $algorithms
+     *
      * @return CompressionBuilder Returns to the main builder for chaining
      */
     public function withAlgorithms(
-        CompressionAlgorithmEnum|array|null $algorithms
+        CompressionAlgorithmEnum|iterable|null $algorithms
     ): CompressionBuilder {
         $this->builder->updateAlgorithms($this->identifier, $algorithms);
 
