@@ -60,8 +60,8 @@ composer require aurynx/http-compression
 Compress a string with gzip:
 
 ```php
-use aurynx\HttpCompression\CompressionBuilder;
-use aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\AlgorithmEnum;
 
 $builder = new CompressionBuilder();
 $builder->add('Hello, World!', AlgorithmEnum::Gzip);
@@ -331,8 +331,8 @@ $result->getIdentifier(); // Item identifier
 Generate precompressed files for nginx's `gzip_static` and `brotli_static`:
 
 ```php
-use aurynx\HttpCompression\CompressionBuilder;
-use aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\AlgorithmEnum;
 
 $publicDir = __DIR__ . '/public';
 $assets = [
