@@ -23,6 +23,19 @@ enum AlgorithmEnum: string
     }
 
     /**
+     * Get all available algorithms on the current system
+     *
+     * @return array<self> List of available algorithm enums
+     */
+    public static function available(): array
+    {
+        return array_filter(
+            self::cases(),
+            static fn(self $algo): bool => $algo->isAvailable()
+        );
+    }
+
+    /**
      * Get the default compression level for this algorithm
      *
      * These levels are balanced for dynamic HTTP content:

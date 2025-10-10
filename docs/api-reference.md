@@ -233,6 +233,26 @@ Check if the algorithm's PHP extension is available.
 
 ---
 
+#### available()
+
+```php
+static available(): array<AlgorithmEnum>
+```
+
+Get all available algorithms on the current system (static method).
+
+**Returns:** Array of `AlgorithmEnum` instances for algorithms with loaded extensions
+
+**Example:**
+```php
+$available = AlgorithmEnum::available();
+foreach ($available as $algo) {
+    echo "{$algo->value} is available\n";
+}
+```
+
+---
+
 #### getDefaultLevel()
 
 ```php

@@ -262,6 +262,106 @@ function compressLargeFile(string $inputPath, string $outputPath): void
 
 **Note:** For true streaming compression, consider using PHP's native stream filters like `zlib.deflate` or implementing `StreamCompressorInterface` (if you need to extend the library).
 
+## Checking Available Algorithms
+
+Before using specific algorithms, you can check which compression extensions are available on the current system:
+
+```php
+use Aurynx\HttpCompression\AlgorithmEnum;
+
+// Get all available algorithms
+$available = AlgorithmEnum::available();
+
+foreach ($available as $algo) {
+    echo "{$algo->value} is available (extension: {$algo->getRequiredExtension()})\n";
+}
+
+// Example output:
+// gzip is available (extension: zlib)
+// br is available (extension: brotli)
+// zstd is available (extension: zstd)
+```
+
+### Use Case: Dynamic Fallback Selection
+
+Choose the best available algorithm based on what's installed:
+
+```php
+use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressorFactory;
+
+function getBestCompressor(): CompressorInterface
+{
+    $available = AlgorithmEnum::available();
+    
+    // Prefer brotli, then zstd, then gzip
+    $preference = [AlgorithmEnum::Brotli, AlgorithmEnum::Zstd, AlgorithmEnum::Gzip];
+    
+    foreach ($preference as $algo) {
+        if (in_array($algo, $available, true)) {
+            return CompressorFactory::create($algo);
+        }
+    }
+    
+    throw new RuntimeException('No compression algorithm available');
+}
+
+$compressor = getBestCompressor();
+$compressed = $compressor->compress($data);
+```
+
+### Use Case: Build-Time Validation
+
+Validate that required extensions are installed before running compression tasks:
+
+```php
+use Aurynx\HttpCompression\AlgorithmEnum;
+
+// In your build script or deployment check
+$required = [AlgorithmEnum::Gzip, AlgorithmEnum::Brotli];
+$available = AlgorithmEnum::available();
+
+$missing = array_filter(
+    $required,
+    fn($algo) => !in_array($algo, $available, true)
+);
+
+if ($missing) {
+    $names = array_map(fn($a) => $a->value, $missing);
+    throw new RuntimeException(
+        'Missing required compression extensions: ' . implode(', ', $names)
+    );
+}
+
+echo "✓ All required compression extensions are available\n";
+```
+
+### Use Case: Compress with All Available Algorithms
+
+Automatically use all available algorithms without hardcoding:
+
+```php
+use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressionBuilder;
+
+$builder = new CompressionBuilder();
+$available = AlgorithmEnum::available();
+
+// Build algorithm map with default levels
+$algorithms = [];
+foreach ($available as $algo) {
+    $algorithms[$algo->value] = $algo->getDefaultLevel();
+}
+
+$builder->add($content, $algorithms);
+$result = $builder->compress()[0];
+
+// Now compressed with all available algorithms
+foreach ($result->getCompressed() as $algo => $compressed) {
+    echo "Compressed with $algo: " . strlen($compressed) . " bytes\n";
+}
+```
+
 ## Algorithm Performance Comparison
 
 Benchmark different algorithms to choose the best for your use case:

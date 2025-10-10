@@ -255,6 +255,24 @@ $builder->add('Another content')
     ->withAlgorithms(AlgorithmEnum::Brotli);
 ```
 
+### Algorithm Detection
+
+Check which compression algorithms are available on your system:
+
+```php
+// Get all available algorithms
+$available = AlgorithmEnum::available();
+
+foreach ($available as $algo) {
+    echo "{$algo->value} is available\n";
+}
+
+// Check a specific algorithm
+if (AlgorithmEnum::Brotli->isAvailable()) {
+    // Use brotli compression
+}
+```
+
 ### Error Handling
 
 Choose between fail-fast or graceful degradation:
