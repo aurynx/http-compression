@@ -17,6 +17,11 @@
     ],
     "type": "library",
     "license": "MIT",
+    "homepage": "https://github.com/aurynx/http-compression",
+    "support": {
+        "issues": "https://github.com/aurynx/http-compression/issues",
+        "source": "https://github.com/aurynx/http-compression"
+    },
     "scripts": {
         "stan": "phpstan analyse -c phpstan.neon.dist --memory-limit=1G",
         "stan:ci": "phpstan analyse -c phpstan.neon.dist --memory-limit=1G --no-progress",
@@ -52,6 +57,12 @@
     "suggest": {
         "ext-brotli": "Enables Brotli compression.",
         "ext-zstd": "Enables Zstandard (zstd) compression."
+    },
+    "extra": {
+        "ai": {
+            "tool": "docs/ai-tool.json",
+            "guide": "docs/ai.md"
+        }
     },
     "config": {
         "platform": {
