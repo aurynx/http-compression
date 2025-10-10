@@ -38,12 +38,12 @@ final readonly class CompressionStatsDto
      */
     public static function fromResults(array $results): self
     {
-        $totalItems = count($results);
-        $successfulItems = 0;
-        $failedItems = 0;
+        $totalItems         = count($results);
+        $successfulItems    = 0;
+        $failedItems        = 0;
         $totalOriginalBytes = 0;
-        $compressedByAlgo = [];
-        $countsByAlgo = [];
+        $compressedByAlgo   = [];
+        $countsByAlgo       = [];
 
         foreach ($results as $result) {
             if ($result->isError()) {
@@ -64,10 +64,10 @@ final readonly class CompressionStatsDto
             foreach ($result->getCompressed() as $algoName => $compressed) {
                 if (!isset($compressedByAlgo[$algoName])) {
                     $compressedByAlgo[$algoName] = 0;
-                    $countsByAlgo[$algoName] = 0;
+                    $countsByAlgo[$algoName]     = 0;
                 }
 
-                $algo = AlgorithmEnum::from($algoName);
+                $algo           = AlgorithmEnum::from($algoName);
                 $compressedSize = $result->getCompressedSize($algo);
 
                 if ($compressedSize !== null) {
@@ -79,7 +79,7 @@ final readonly class CompressionStatsDto
 
         // Calculate saved bytes and average ratios
         $totalSavedBytes = [];
-        $averageRatio = [];
+        $averageRatio    = [];
 
         foreach ($compressedByAlgo as $algoName => $totalCompressed) {
             $totalSavedBytes[$algoName] = $totalOriginalBytes - $totalCompressed;
@@ -207,8 +207,8 @@ final readonly class CompressionStatsDto
      */
     public function summary(): string
     {
-        $lines = [];
-        $lines[] = "Compression Statistics:";
+        $lines   = [];
+        $lines[] = 'Compression Statistics:';
         $lines[] = "  Total items: {$this->totalItems}";
         $lines[] = "  Successful: {$this->successfulItems}";
 
@@ -216,16 +216,16 @@ final readonly class CompressionStatsDto
             $lines[] = "  Failed: {$this->failedItems}";
         }
 
-        $lines[] = "  Original size: " . $this->formatBytes($this->totalOriginalBytes);
+        $lines[] = '  Original size: ' . $this->formatBytes($this->totalOriginalBytes);
 
         foreach ($this->getAlgorithms() as $algoName) {
-            $algo = AlgorithmEnum::from($algoName);
+            $algo       = AlgorithmEnum::from($algoName);
             $compressed = $this->getTotalCompressedBytes($algo);
-            $saved = $this->getTotalSavedBytes($algo);
+            $saved      = $this->getTotalSavedBytes($algo);
             $percentage = $this->getAveragePercentage($algo);
 
             $lines[] = sprintf(
-                "  %s: %s (saved %s, %.1f%% reduction)",
+                '  %s: %s (saved %s, %.1f%% reduction)',
                 $algoName,
                 $this->formatBytes($compressed ?? 0),
                 $this->formatBytes($saved ?? 0),
@@ -241,9 +241,9 @@ final readonly class CompressionStatsDto
      */
     private function formatBytes(int $bytes): string
     {
-        $units = ['B', 'KB', 'MB', 'GB'];
+        $units     = ['B', 'KB', 'MB', 'GB'];
         $unitIndex = 0;
-        $size = (float) $bytes;
+        $size      = (float) $bytes;
 
         while ($size >= 1024 && $unitIndex < count($units) - 1) {
             $size /= 1024;

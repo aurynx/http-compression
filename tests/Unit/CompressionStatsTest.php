@@ -15,7 +15,7 @@ test('batch stats aggregates multiple results', function () {
     $builder->add(str_repeat('Test data C. ', 100), AlgorithmEnum::Gzip);
 
     $results = $builder->compress();
-    $stats = CompressionStatsDto::fromResults($results);
+    $stats   = CompressionStatsDto::fromResults($results);
 
     expect($stats->getTotalItems())->toBe(3);
     expect($stats->getSuccessfulItems())->toBe(3);
@@ -31,7 +31,7 @@ test('batch stats calculates total original size', function () {
     $builder->add($content2, AlgorithmEnum::Gzip);
 
     $results = $builder->compress();
-    $stats = CompressionStatsDto::fromResults($results);
+    $stats   = CompressionStatsDto::fromResults($results);
 
     expect($stats->getTotalOriginalBytes())->toBe(1500);
 });
@@ -42,7 +42,7 @@ test('batch stats calculates total compressed size', function () {
     $builder->add(str_repeat('Data ', 200), AlgorithmEnum::Gzip);
 
     $results = $builder->compress();
-    $stats = CompressionStatsDto::fromResults($results);
+    $stats   = CompressionStatsDto::fromResults($results);
 
     $totalCompressed = $stats->getTotalCompressedBytes(AlgorithmEnum::Gzip);
 
@@ -57,7 +57,7 @@ test('batch stats calculates total saved bytes', function () {
     $builder->add(str_repeat('Repetitive! ', 100), AlgorithmEnum::Gzip);
 
     $results = $builder->compress();
-    $stats = CompressionStatsDto::fromResults($results);
+    $stats   = CompressionStatsDto::fromResults($results);
 
     $saved = $stats->getTotalSavedBytes(AlgorithmEnum::Gzip);
 
@@ -71,7 +71,7 @@ test('batch stats calculates average compression ratio', function () {
     $builder->add(str_repeat('More data. ', 50), AlgorithmEnum::Gzip);
 
     $results = $builder->compress();
-    $stats = CompressionStatsDto::fromResults($results);
+    $stats   = CompressionStatsDto::fromResults($results);
 
     $ratio = $stats->getAverageRatio(AlgorithmEnum::Gzip);
 
@@ -86,7 +86,7 @@ test('batch stats calculates average percentage', function () {
     $builder->add(str_repeat('BBBB', 250), AlgorithmEnum::Gzip);
 
     $results = $builder->compress();
-    $stats = CompressionStatsDto::fromResults($results);
+    $stats   = CompressionStatsDto::fromResults($results);
 
     $percentage = $stats->getAveragePercentage(AlgorithmEnum::Gzip);
 
@@ -102,7 +102,7 @@ test('batch stats handles multiple algorithms', function () {
     ]);
 
     $results = $builder->compress();
-    $stats = CompressionStatsDto::fromResults($results);
+    $stats   = CompressionStatsDto::fromResults($results);
 
     expect($stats->hasAlgorithm(AlgorithmEnum::Gzip))->toBeTrue();
     expect($stats->getAlgorithms())->toContain('gzip');
@@ -115,14 +115,14 @@ test('batch stats calculates success rate', function () {
     $builder->add('Data 3', AlgorithmEnum::Gzip);
 
     $results = $builder->compress();
-    $stats = CompressionStatsDto::fromResults($results);
+    $stats   = CompressionStatsDto::fromResults($results);
 
     expect($stats->getSuccessRate())->toBe(1.0); // 100% success
 });
 
 test('batch stats handles empty results', function () {
     $results = [];
-    $stats = CompressionStatsDto::fromResults($results);
+    $stats   = CompressionStatsDto::fromResults($results);
 
     expect($stats->getTotalItems())->toBe(0);
     expect($stats->getSuccessfulItems())->toBe(0);
@@ -135,7 +135,7 @@ test('batch stats summary generates readable output', function () {
     $builder->add(str_repeat('Data ', 100), AlgorithmEnum::Gzip);
 
     $results = $builder->compress();
-    $stats = CompressionStatsDto::fromResults($results);
+    $stats   = CompressionStatsDto::fromResults($results);
 
     $summary = $stats->summary();
 
@@ -154,7 +154,7 @@ test('batch stats works with large batches', function () {
     }
 
     $results = $builder->compress();
-    $stats = CompressionStatsDto::fromResults($results);
+    $stats   = CompressionStatsDto::fromResults($results);
 
     expect($stats->getTotalItems())->toBe(50);
     expect($stats->getSuccessfulItems())->toBe(50);
@@ -166,7 +166,7 @@ test('batch stats returns null for unused algorithms', function () {
     $builder->add('Test', AlgorithmEnum::Gzip);
 
     $results = $builder->compress();
-    $stats = CompressionStatsDto::fromResults($results);
+    $stats   = CompressionStatsDto::fromResults($results);
 
     expect($stats->getTotalCompressedBytes(AlgorithmEnum::Brotli))->toBeNull();
     expect($stats->getTotalSavedBytes(AlgorithmEnum::Brotli))->toBeNull();
@@ -181,7 +181,7 @@ test('batch stats aggregates across mixed success/failure', function () {
     $builder->add('More good data', AlgorithmEnum::Gzip);
 
     $results = $builder->compress();
-    $stats = CompressionStatsDto::fromResults($results);
+    $stats   = CompressionStatsDto::fromResults($results);
 
     expect($stats->getTotalItems())->toBe(2);
     expect($stats->getSuccessfulItems())->toBeGreaterThan(0);

@@ -559,15 +559,15 @@ final class CompressionBuilder implements Countable, IteratorAggregate
                         fclose($fp);
                     }
                 } else {
-                    $content ??= $item->readContent();
+                    $content      ??= $item->readContent();
                     $originalSize ??= strlen($content);
 
-                    $compressedData = $compressor->compress($content, $level);
+                    $compressedData              = $compressor->compress($content, $level);
                     $compressed[$algorithmValue] = $compressedData;
 
                     // Store compression metrics
                     $metadata[$algorithmValue] = [
-                        'input' => $originalSize,
+                        'input'  => $originalSize,
                         'output' => strlen($compressedData),
                     ];
                 }

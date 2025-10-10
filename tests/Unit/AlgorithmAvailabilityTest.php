@@ -22,20 +22,20 @@ test('available() returns only algorithms with loaded extensions', function () {
 
 test('available() always includes gzip', function () {
     $available = AlgorithmEnum::available();
-    $names = array_map(fn($algo) => $algo->value, $available);
+    $names     = array_map(fn ($algo) => $algo->value, $available);
 
     expect($names)->toContain('gzip'); // zlib is always available in PHP
 });
 
 test('available() filters out unavailable algorithms', function () {
     $available = AlgorithmEnum::available();
-    $all = AlgorithmEnum::cases();
+    $all       = AlgorithmEnum::cases();
 
     // If not all algorithms are available, check filtering works
     if (count($available) < count($all)) {
         $unavailable = array_filter(
             $all,
-            fn($algo) => !$algo->isAvailable()
+            fn ($algo) => !$algo->isAvailable()
         );
 
         foreach ($unavailable as $algo) {
@@ -48,7 +48,7 @@ test('available() filters out unavailable algorithms', function () {
 
 test('available() returns indexed array with sequential keys', function () {
     $available = AlgorithmEnum::available();
-    $keys = array_keys($available);
+    $keys      = array_keys($available);
 
     // array_filter preserves keys, but we want to ensure it's usable
     expect($available)->toBeArray();

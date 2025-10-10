@@ -6,7 +6,8 @@ use Aurynx\HttpCompression\AlgorithmEnum;
 use Aurynx\HttpCompression\CompressionBuilder;
 
 // Helper function to get first result from associative array
-function firstResult(array $results) {
+function firstResult(array $results)
+{
     return array_values($results)[0];
 }
 
@@ -17,7 +18,7 @@ test('compression actually reduces data size', function () {
     $builder->add($content, AlgorithmEnum::Gzip);
     $results = $builder->compress();
 
-    $result = array_values($results)[0];
+    $result     = array_values($results)[0];
     $compressed = $result->getCompressedFor(AlgorithmEnum::Gzip);
 
     expect(strlen($compressed))->toBeLessThan(strlen($content));
@@ -43,7 +44,7 @@ test('getCompressedSize returns correct compressed size', function () {
     $builder->add($content, AlgorithmEnum::Gzip);
     $results = $builder->compress();
 
-    $result = firstResult($results);
+    $result     = firstResult($results);
     $compressed = $result->getCompressedFor(AlgorithmEnum::Gzip);
 
     expect($result->getCompressedSize(AlgorithmEnum::Gzip))->toBe(strlen($compressed));
@@ -57,7 +58,7 @@ test('getCompressionRatio returns value between 0 and 1', function () {
     $results = $builder->compress();
 
     $result = firstResult($results);
-    $ratio = $result->getCompressionRatio(AlgorithmEnum::Gzip);
+    $ratio  = $result->getCompressionRatio(AlgorithmEnum::Gzip);
 
     expect($ratio)->toBeFloat();
     expect($ratio)->toBeGreaterThan(0.0);
@@ -72,7 +73,7 @@ test('getSavedBytes returns positive value for good compression', function () {
     $results = $builder->compress();
 
     $result = firstResult($results);
-    $saved = $result->getSavedBytes(AlgorithmEnum::Gzip);
+    $saved  = $result->getSavedBytes(AlgorithmEnum::Gzip);
 
     expect($saved)->toBeInt();
     expect($saved)->toBeGreaterThan(0);
@@ -85,7 +86,7 @@ test('getCompressionPercentage returns meaningful percentage', function () {
     $builder->add($content, AlgorithmEnum::Gzip);
     $results = $builder->compress();
 
-    $result = firstResult($results);
+    $result     = firstResult($results);
     $percentage = $result->getCompressionPercentage(AlgorithmEnum::Gzip);
 
     expect($percentage)->toBeFloat();
@@ -137,7 +138,7 @@ test('metrics work with multiple algorithms', function () {
 
 test('file compression includes metrics', function () {
     $testFile = sys_get_temp_dir() . '/metrics_test_' . uniqid() . '.txt';
-    $content = str_repeat('File compression test data. ', 50);
+    $content  = str_repeat('File compression test data. ', 50);
     file_put_contents($testFile, $content);
 
     try {
@@ -179,9 +180,9 @@ test('compression ratio calculation is accurate', function () {
 
     $result = firstResult($results);
 
-    $originalSize = $result->getOriginalSize();
+    $originalSize   = $result->getOriginalSize();
     $compressedSize = $result->getCompressedSize(AlgorithmEnum::Gzip);
-    $ratio = $result->getCompressionRatio(AlgorithmEnum::Gzip);
+    $ratio          = $result->getCompressionRatio(AlgorithmEnum::Gzip);
 
     // Manual calculation should match
     expect($ratio)->toBe($compressedSize / $originalSize);
