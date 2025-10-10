@@ -346,6 +346,8 @@ $builder->add('Large content', AlgorithmEnum::Gzip)
 ### Result Inspection
 
 Rich result objects with comprehensive information:
+
+```php
 // Get result by identifier
 $id = $builder->getLastIdentifier();
 $result = $results[$id];
