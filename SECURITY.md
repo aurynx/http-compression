@@ -1,12 +1,21 @@
 # Security Policy
 
+<!-- SECURITY_CONTACT: anton.a.semenov@proton.me -->
+<!-- SECURITY_SLA_INITIAL_RESPONSE: 5 days -->
+<!-- SECURITY_SLA_PATCH_CRITICAL: 14 days -->
+<!-- SECURITY_SCOPE: aurynx/http-compression -->
+
+## Scope
+
+This security policy applies to the **aurynx/http-compression** package and its associated examples and documentation.
+
 ## Supported Versions
 
 This project is currently in **pre-release** development (0.x versions). Security updates are provided for the latest 0.x release only.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.x.x   | :white_check_mark: |
+| Version | Supported |
+|:-------:|:---------:|
+| 0.x.x   | ✅        |
 
 Once the project reaches 1.0.0, this policy will be updated to reflect long-term support for stable versions.
 
@@ -16,9 +25,13 @@ If you discover a security vulnerability in this library, please report it priva
 
 ### How to Report
 
-**Email:** anton.a.semenov@proton.me
+You can report vulnerabilities through:
 
-**Subject:** `[SECURITY] Vulnerability in aurynx/http-compression`
+1. **GitHub Private Vulnerability Reporting (recommended):**  
+   [Report a vulnerability](https://github.com/aurynx/http-compression/security/advisories/new)
+
+2. **Email:** anton.a.semenov@proton.me  
+   **Subject:** `[SECURITY] Vulnerability in aurynx/http-compression`
 
 **Please include:**
 - Description of the vulnerability
