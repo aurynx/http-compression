@@ -12,9 +12,11 @@
       "class": "CompressionBuilder",
       "summary": "Fluent builder that collects items and compresses them with gzip, brotli, zstd.",
       "methods": [
+        { "name": "__construct", "params": ["?int $maxBytes = null"], "returns": "void", "note": "Optional global size limit for all items" },
         { "name": "add", "params": ["string $content", "AlgorithmEnum|iterable|null $algorithms = null", "?string $customIdentifier = null"], "returns": "self" },
         { "name": "addFile", "params": ["string $filePath", "AlgorithmEnum|iterable|null $algorithms = null", "?string $customIdentifier = null"], "returns": "self" },
         { "name": "addMany", "params": ["iterable $payloads", "AlgorithmEnum|iterable|null $defaultAlgorithms = null"], "returns": "self" },
+        { "name": "getLastIdentifier", "params": [], "returns": "?string", "note": "Get identifier of last added item" },
         { "name": "addManyFiles", "params": ["iterable $payloads", "AlgorithmEnum|iterable|null $defaultAlgorithms = null"], "returns": "self" },
         { "name": "withDefaultAlgorithms", "params": ["AlgorithmEnum|iterable|null $algorithms"], "returns": "self" },
         { "name": "forItem", "params": ["string $identifier"], "returns": "ItemConfigurator" },
@@ -33,7 +35,10 @@
     "prefer_order": ["br", "zstd", "gzip"]
   },
   "constraints": {
-    "php": ">=8.4",
+    "php": {
+      "version": "^8.4",
+      "supported": ["8.4.x", "8.5.x", "8.6.x"]
+    },
     "psr": ["PSR-12"],
     "extensions": {
       "gzip": "ext-zlib (required)",
