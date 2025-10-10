@@ -22,12 +22,16 @@ final readonly class CompressionResult
      * @param array<string, string> $compressed Map of algorithm => compressed content (successful compressions)
      * @param CompressionException|null $error Complete failure error (mutually exclusive with partial)
      * @param array<string, array{code:int, message:string}> $algorithmErrors Map of algorithm => structured error (for partial failures)
+     * @param array<string, array{input: int, output: int}> $metadata Compression metrics per algorithm (input/output bytes)
+     * @param int|null $originalSize Original uncompressed size in bytes
      */
     public function __construct(
         private string $identifier,
         private array $compressed,
         private ?CompressionException $error = null,
-        private array $algorithmErrors = []
+        private array $algorithmErrors = [],
+        private array $metadata = [],
+        private ?int $originalSize = null
     ) {
     }
 
@@ -36,7 +40,7 @@ final readonly class CompressionResult
      */
     public static function createError(string $identifier, CompressionException $error): CompressionResult
     {
-        return new CompressionResult($identifier, [], $error);
+        return new CompressionResult($identifier, [], $error, [], [], null);
     }
 
     /**
@@ -44,13 +48,16 @@ final readonly class CompressionResult
      *
      * @param array<string, string> $compressed
      * @param array<string, array{code:int, message:string}> $algorithmErrors
+     * @param array<string, array{input: int, output: int}> $metadata
      */
     public static function createPartial(
         string $identifier,
         array $compressed,
-        array $algorithmErrors
+        array $algorithmErrors,
+        array $metadata = [],
+        ?int $originalSize = null
     ): CompressionResult {
-        return new CompressionResult($identifier, $compressed, null, $algorithmErrors);
+        return new CompressionResult($identifier, $compressed, null, $algorithmErrors, $metadata, $originalSize);
     }
 
     public function getIdentifier(): string
@@ -177,5 +184,80 @@ final readonly class CompressionResult
     public function getAlgorithmError(AlgorithmEnum $algorithm): ?array
     {
         return $this->algorithmErrors[$algorithm->value] ?? null;
+    }
+
+    /**
+     * Get original uncompressed size in bytes
+     */
+    public function getOriginalSize(): ?int
+    {
+        return $this->originalSize;
+    }
+
+    /**
+     * Get compressed size for a specific algorithm in bytes
+     */
+    public function getCompressedSize(AlgorithmEnum $algorithm): ?int
+    {
+        return $this->metadata[$algorithm->value]['output'] ?? null;
+    }
+
+    /**
+     * Get compression ratio for a specific algorithm (0.0 to 1.0)
+     *
+     * @return float|null Ratio of compressed/original size (e.g., 0.42 means 42% of original)
+     */
+    public function getCompressionRatio(AlgorithmEnum $algorithm): ?float
+    {
+        $meta = $this->metadata[$algorithm->value] ?? null;
+        if (!$meta || $meta['input'] === 0) {
+            return null;
+        }
+
+        return $meta['output'] / $meta['input'];
+    }
+
+    /**
+     * Get bytes saved by compression for a specific algorithm
+     *
+     * @return int|null Number of bytes saved (negative if compressed is larger)
+     */
+    public function getSavedBytes(AlgorithmEnum $algorithm): ?int
+    {
+        $meta = $this->metadata[$algorithm->value] ?? null;
+
+        if (!$meta) {
+            return null;
+        }
+
+        return $meta['input'] - $meta['output'];
+    }
+
+    /**
+     * Get compression percentage for a specific algorithm
+     *
+     * @return float|null Percentage reduction (e.g., 58.0 means 58% size reduction)
+     */
+    public function getCompressionPercentage(AlgorithmEnum $algorithm): ?float
+    {
+        $ratio = $this->getCompressionRatio($algorithm);
+
+        if ($ratio === null) {
+            return null;
+        }
+
+        return (1.0 - $ratio) * 100;
+    }
+
+    /**
+     * Check if compression was effective for a specific algorithm
+     *
+     * @return bool|null True if compressed size is smaller than original, null if no metadata
+     */
+    public function isEffective(AlgorithmEnum $algorithm): ?bool
+    {
+        $saved = $this->getSavedBytes($algorithm);
+
+        return $saved !== null ? $saved > 0 : null;
     }
 }

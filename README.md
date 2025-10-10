@@ -167,8 +167,9 @@ $builder->add('{"user": "john", "active": true}', [
     AlgorithmEnum::Zstd->value => 3     // level 3
 ]);
 
+$id = $builder->getLastIdentifier();
 $results = $builder->compress();
-$result = $results[0];
+$result = $results[$id];
 
 // Get all compressed variants
 $allCompressed = $result->getCompressed();
@@ -185,12 +186,13 @@ $builder->addFile('/path/to/app.js', [
     AlgorithmEnum::Gzip->value => 9,
     AlgorithmEnum::Brotli->value => 11
 ]);
-
+$id = $builder->getLastIdentifier();
 $results = $builder->compress();
+$result = $results[$id];
 
-if ($results[0]->isOk()) {
-    $gzipped = $results[0]->getCompressedFor(AlgorithmEnum::Gzip);
-    $brotlied = $results[0]->getCompressedFor(AlgorithmEnum::Brotli);
+if ($result->isOk()) {
+    $gzipped = $result->getCompressedFor(AlgorithmEnum::Gzip);
+    $brotlied = $result->getCompressedFor(AlgorithmEnum::Brotli);
     
     // Save precompressed files
     file_put_contents('/path/to/app.js.gz', $gzipped);
@@ -302,6 +304,31 @@ foreach ($results as $result) {
 }
 ```
 
+### Accessing Results
+
+Results are returned as an associative array indexed by item identifiers:
+
+```php
+// For single item - use getLastIdentifier()
+$builder->add('content', AlgorithmEnum::Gzip);
+$id = $builder->getLastIdentifier();
+$results = $builder->compress();
+$result = $results[$id];  // Direct access by identifier
+
+// With custom identifier
+$builder->add('content', AlgorithmEnum::Gzip, 'my-data');
+$results = $builder->compress();
+$result = $results['my-data'];  // Access by custom identifier
+
+// For batch - iterate over all results
+foreach ($results as $identifier => $result) {
+    echo "Processing $identifier: ";
+    if ($result->isOk()) {
+        echo "✓ Success\n";
+    }
+}
+```
+
 ### Size Limits
 
 Protect against excessive memory usage:
@@ -319,9 +346,9 @@ $builder->add('Large content', AlgorithmEnum::Gzip)
 ### Result Inspection
 
 Rich result objects with comprehensive information:
-
-```php
-$result = $results[0];
+// Get result by identifier
+$id = $builder->getLastIdentifier();
+$result = $results[$id];
 
 // Check status
 $result->isOk();        // All algorithms succeeded
@@ -337,14 +364,53 @@ $result->hasAlgorithm(AlgorithmEnum::Brotli);       // Check if the algorithm wa
 $result->getErrors();                               // All errors
 $result->getAlgorithmError(AlgorithmEnum::Zstd);    // Error for a specific algorithm
 
+// Get compression metrics
+$result->getOriginalSize();                         // Original size in bytes
+$result->getCompressedSize(AlgorithmEnum::Gzip);    // Compressed size
+$result->getCompressionRatio(AlgorithmEnum::Gzip);  // Ratio (0.0-1.0)
+$result->getCompressionPercentage(AlgorithmEnum::Gzip); // Reduction %
+$result->getSavedBytes(AlgorithmEnum::Gzip);        // Bytes saved
+$result->isEffective(AlgorithmEnum::Gzip);          // Was compression effective?
+
 // Get identifier
 $result->getIdentifier(); // Item identifier
+```
+
+## Batch Compression Statistics
+
+Get aggregated metrics when compressing multiple files:
+
+```php
+use Aurynx\HttpCompression\CompressionStats;
+
+// Access individual result by identifier
+// foreach ($results as $id => $result) { ... }
+
+$builder = new CompressionBuilder();
+$builder->addManyFiles($files, AlgorithmEnum::Gzip);
+$results = $builder->compress();
+
+// Get aggregated statistics
+$stats = CompressionStats::fromResults($results);
+
+echo $stats->summary();
+// Output:
+// Compression Statistics:
+//   Total items: 50
+//   Successful: 50
+//   Original size: 2.34 MB
+//   gzip: 512.45 KB (saved 1.85 MB, 78.9% reduction)
+
+// Access specific metrics
+$totalSaved = $stats->getTotalSavedBytes(AlgorithmEnum::Gzip);
+$avgPercentage = $stats->getAveragePercentage(AlgorithmEnum::Gzip);
+$successRate = $stats->getSuccessRate(); // 0.0 to 1.0
 ```
 
 ## Documentation
 
 - **[Usage Examples](docs/examples.md)** — Static asset precompression, API responses, build scripts
-- **[Advanced Usage](docs/advanced-usage.md)** — Direct compressor access, middleware, custom implementations, testing, benchmarks
+- **[Advanced Usage](docs/advanced-usage.md)** — Direct compressor access, middleware, custom implementations, testing, benchmarks, batch statistics
 - **[API Reference](docs/api-reference.md)** — Complete API documentation for all classes and methods
 - **[AI Integration Guide](docs/ai.md)** — Guide for AI coding assistants
 

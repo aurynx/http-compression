@@ -37,10 +37,11 @@ function compressApiResponse(string $json, string $acceptEncoding): array
 
     $result = new CompressionBuilder(/* maxBytes: optional */)
         ->graceful()                 // continue on errors
-        ->add($json, $algos)
-        ->compress();
+        ->add($json, $algos);
 
-    $result = array_values($result)[0] ?? null;
+    $id = $builder->getLastIdentifier();
+    $results = $builder->compress();
+    $result = $results[$id] ?? null;
     if (!$result) {
         return ['content' => $json, 'encoding' => 'identity'];
     }

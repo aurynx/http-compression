@@ -370,6 +370,30 @@ final class CompressionBuilder implements Countable, IteratorAggregate
     }
 
     /**
+     * Enable fail-fast mode (throw exception on first error)
+     *
+     * Alias for setFailFast(true). Default behavior.
+     *
+     * @return $this
+     */
+    public function failFast(): self
+    {
+        return $this->setFailFast(true);
+    }
+
+    /**
+     * Enable graceful mode (continue on errors, collect them in results)
+     *
+     * Alias for setFailFast(false).
+     *
+     * @return $this
+     */
+    public function graceful(): self
+    {
+        return $this->setFailFast(false);
+    }
+
+    /**
      * Delete an item by its identifier
      *
      * If the deleted item was the last added, the lastAddedIdentifier is updated to the
@@ -476,7 +500,9 @@ final class CompressionBuilder implements Countable, IteratorAggregate
         $algorithms      = $this->algorithms[$identifier];
         $compressed      = [];
         $algorithmErrors = [];
+        $metadata        = [];
         $lastError       = null;
+        $originalSize    = null;
 
         // Enforce limit once before processing (applies to both raw and file)
         try {
@@ -528,13 +554,24 @@ final class CompressionBuilder implements Countable, IteratorAggregate
                     }
                 } else {
                     $content ??= $item->readContent();
-                    $compressed[$algorithmValue] = $compressor->compress($content, $level);
+                    $originalSize ??= strlen($content);
+
+                    $compressedData = $compressor->compress($content, $level);
+                    $compressed[$algorithmValue] = $compressedData;
+
+                    // Store compression metrics
+                    $metadata[$algorithmValue] = [
+                        'input' => $originalSize,
+                        'output' => strlen($compressedData),
+                    ];
                 }
             } catch (CompressionException $e) {
                 $lastError = $e;
+
                 if ($this->failFast) {
                     throw $e;
                 }
+
                 // In non-failFast mode, track per-algorithm error with code and message
                 $algorithmErrors[$algorithmValue] = [
                     'code'    => $e->getCode(),
@@ -562,10 +599,10 @@ final class CompressionBuilder implements Countable, IteratorAggregate
         }
 
         if (!empty($algorithmErrors)) {
-            return CompressionResult::createPartial($identifier, $compressed, $algorithmErrors);
+            return new CompressionResult($identifier, $compressed, null, $algorithmErrors, $metadata, $originalSize);
         }
 
-        return new CompressionResult($identifier, $compressed);
+        return new CompressionResult($identifier, $compressed, null, [], $metadata, $originalSize);
     }
 
     /**

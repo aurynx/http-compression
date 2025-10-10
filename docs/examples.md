@@ -74,8 +74,9 @@ function compressResponse(string $json, string $acceptEncoding): array
     }
 
     $builder->add($json, $algorithms);
+    $id = $builder->getLastIdentifier();
     $results = $builder->compress();
-    $result = $results[0];
+    $result = $results[$id];
 
     if (!$result->isOk()) {
         return ['content' => $json, 'encoding' => 'identity'];
@@ -136,8 +137,9 @@ $builder = new CompressionBuilder()
         AlgorithmEnum::Zstd->value => 3      // May fail if ext not installed
     ]);
 
+$id = $builder->getLastIdentifier();
 $results = $builder->compress();
-$result = $results[0];
+$result = $results[$id];
 
 if ($result->isPartial()) {
     echo "Partial success:\n";

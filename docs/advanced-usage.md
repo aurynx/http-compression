@@ -362,6 +362,467 @@ foreach ($result->getCompressed() as $algo => $compressed) {
 }
 ```
 
+## Using Compression Metrics
+
+The library automatically collects metrics about compression efficiency. You can access these metrics to:
+- Verify that compression actually reduces size
+- Log compression statistics
+- Debug compression issues
+- Choose optimal algorithms
+
+### Basic Metrics Usage
+
+```php
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\AlgorithmEnum;
+
+$content = file_get_contents('large-file.json');
+
+$builder = new CompressionBuilder();
+$builder->add($content, AlgorithmEnum::Gzip);
+$id = $builder->getLastIdentifier();
+$results = $builder->compress();
+$result = $results[$id];
+
+// Get sizes
+$originalSize = $result->getOriginalSize();
+$compressedSize = $result->getCompressedSize(AlgorithmEnum::Gzip);
+$saved = $result->getSavedBytes(AlgorithmEnum::Gzip);
+$percentage = $result->getCompressionPercentage(AlgorithmEnum::Gzip);
+
+echo "Original: {$originalSize} bytes\n";
+echo "Compressed: {$compressedSize} bytes\n";
+echo "Saved: {$saved} bytes ({$percentage}% reduction)\n";
+
+// Check if compression was effective
+if ($result->isEffective(AlgorithmEnum::Gzip)) {
+    echo "✓ Compression was effective\n";
+} else {
+    echo "✗ Compression increased size (not effective)\n";
+}
+```
+
+### Logging Compression Statistics
+
+```php
+use Psr\Log\LoggerInterface;
+
+function compressAndLog(string $content, LoggerInterface $logger): string
+{
+    $builder = new CompressionBuilder();
+    $builder->add($content, AlgorithmEnum::Gzip);
+    $id = $builder->getLastIdentifier();
+    $results = $builder->compress();
+    $result = $results[$id];
+    
+    if ($result->isOk()) {
+        $logger->info('Compression successful', [
+            'original_bytes' => $result->getOriginalSize(),
+            'compressed_bytes' => $result->getCompressedSize(AlgorithmEnum::Gzip),
+            'saved_bytes' => $result->getSavedBytes(AlgorithmEnum::Gzip),
+            'reduction_percent' => $result->getCompressionPercentage(AlgorithmEnum::Gzip),
+            'ratio' => $result->getCompressionRatio(AlgorithmEnum::Gzip),
+        ]);
+        
+        return $result->getCompressedFor(AlgorithmEnum::Gzip);
+    }
+    
+    $logger->error('Compression failed', ['error' => $result->getError()->getMessage()]);
+    return $content;
+}
+```
+
+### Comparing Algorithm Efficiency
+
+```php
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\AlgorithmEnum;
+
+$content = str_repeat('Sample data for testing. ', 1000);
+
+$builder = new CompressionBuilder();
+$builder->add($content, [
+    AlgorithmEnum::Gzip->value => 6,
+    AlgorithmEnum::Brotli->value => 4,
+    AlgorithmEnum::Zstd->value => 3,
+]);
+
+$id = $builder->getLastIdentifier();
+$results = $builder->compress();
+$result = $results[$id];
+
+echo "Compression comparison:\n";
+foreach ([AlgorithmEnum::Gzip, AlgorithmEnum::Brotli, AlgorithmEnum::Zstd] as $algo) {
+    if (!$result->hasAlgorithm($algo)) {
+        continue;
+    }
+    
+    $size = $result->getCompressedSize($algo);
+    $percentage = $result->getCompressionPercentage($algo);
+    
+    echo sprintf("  %s: %d bytes (%.1f%% reduction)\n", 
+        $algo->value, $size, $percentage);
+}
+
+// Output example:
+// Compression comparison:
+//   gzip: 142 bytes (94.3% reduction)
+//   br: 118 bytes (95.3% reduction)
+//   zstd: 135 bytes (94.6% reduction)
+```
+
+### Asserting Compression Effectiveness in Tests
+
+```php
+use PHPUnit\Framework\TestCase;
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\AlgorithmEnum;
+
+class CompressionTest extends TestCase
+{
+    public function testCompressionReducesSize(): void
+    {
+        $content = str_repeat('Repetitive data. ', 100);
+        
+        $builder = new CompressionBuilder();
+        $builder->add($content, AlgorithmEnum::Gzip);
+        $id = $builder->getLastIdentifier();
+        $results = $builder->compress();
+        $result = $results[$id];
+        
+        // Assert compression was effective
+        $this->assertTrue($result->isEffective(AlgorithmEnum::Gzip));
+        
+        // Assert at least 50% compression
+        $percentage = $result->getCompressionPercentage(AlgorithmEnum::Gzip);
+        $this->assertGreaterThan(50.0, $percentage);
+        
+        // Assert compressed size is less than original
+        $this->assertLessThan(
+            $result->getOriginalSize(),
+            $result->getCompressedSize(AlgorithmEnum::Gzip)
+        );
+    }
+    
+    public function testHighlyCompressibleData(): void
+    {
+        $content = str_repeat('A', 10000);
+        
+        $builder = new CompressionBuilder();
+        $builder->add($content, AlgorithmEnum::Gzip);
+        $id = $builder->getLastIdentifier();
+        $results = $builder->compress();
+        $result = $results[$id];
+        
+        // Highly repetitive data should achieve >90% compression
+        $percentage = $result->getCompressionPercentage(AlgorithmEnum::Gzip);
+        $this->assertGreaterThan(90.0, $percentage);
+    }
+}
+```
+
+### Conditional Response Compression
+
+Only compress if it's actually beneficial:
+
+```php
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\AlgorithmEnum;
+
+function smartCompress(string $content, string $acceptEncoding): array
+{
+    // Determine algorithm from Accept-Encoding
+    $algorithm = str_contains($acceptEncoding, 'br') 
+        ? AlgorithmEnum::Brotli 
+        : AlgorithmEnum::Gzip;
+    
+    $builder = new CompressionBuilder();
+    $builder->add($content, $algorithm);
+    $id = $builder->getLastIdentifier();
+    $results = $builder->compress();
+    $result = $results[$id];
+    
+    if (!$result->isOk()) {
+        return ['content' => $content, 'encoding' => 'identity'];
+    }
+    
+    // Only use compression if it saves at least 10% (avoids overhead for small gains)
+    $percentage = $result->getCompressionPercentage($algorithm);
+    
+    if ($percentage >= 10.0) {
+        return [
+            'content' => $result->getCompressedFor($algorithm),
+            'encoding' => $algorithm->value,
+            'saved_bytes' => $result->getSavedBytes($algorithm),
+        ];
+    }
+    
+    // Not worth compressing
+    return ['content' => $content, 'encoding' => 'identity'];
+}
+```
+
+## Batch Compression Statistics
+
+When compressing multiple files or content items, use `CompressionStats` to get aggregated metrics across the entire batch:
+
+### Basic Batch Statistics
+
+```php
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\CompressionStats;
+use Aurynx\HttpCompression\AlgorithmEnum;
+
+$publicDir = __DIR__ . '/public';
+$assets = glob("$publicDir/**/*.{js,css,html}", GLOB_BRACE);
+
+$builder = new CompressionBuilder();
+$builder->addManyFiles($assets, [
+    AlgorithmEnum::Gzip->value => 9,
+    AlgorithmEnum::Brotli->value => 11,
+]);
+
+$results = $builder->compress();
+$stats = CompressionStats::fromResults($results);
+
+// Print summary
+echo $stats->summary();
+
+// Output:
+// Compression Statistics:
+//   Total items: 45
+//   Successful: 45
+//   Original size: 2.34 MB
+//   gzip: 512.45 KB (saved 1.85 MB, 78.9% reduction)
+//   br: 398.12 KB (saved 1.96 MB, 83.1% reduction)
+```
+
+### Logging Batch Compression Results
+
+```php
+use Psr\Log\LoggerInterface;
+
+function compressAndLogBatch(array $files, LoggerInterface $logger): void
+{
+    $builder = new CompressionBuilder();
+    $builder->addManyFiles($files, AlgorithmEnum::Gzip);
+    
+    $results = $builder->compress();
+    $stats = CompressionStats::fromResults($results);
+    
+    $logger->info('Batch compression completed', [
+        'total_items' => $stats->getTotalItems(),
+        'successful' => $stats->getSuccessfulItems(),
+        'failed' => $stats->getFailedItems(),
+        'success_rate' => $stats->getSuccessRate() * 100 . '%',
+        'original_bytes' => $stats->getTotalOriginalBytes(),
+        'compressed_bytes' => $stats->getTotalCompressedBytes(AlgorithmEnum::Gzip),
+        'saved_bytes' => $stats->getTotalSavedBytes(AlgorithmEnum::Gzip),
+        'average_reduction' => $stats->getAveragePercentage(AlgorithmEnum::Gzip) . '%',
+    ]);
+}
+```
+
+### Build-Time Statistics Report
+
+Generate a report for precompressed static assets:
+
+```php
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\CompressionStats;
+use Aurynx\HttpCompression\AlgorithmEnum;
+
+$publicDir = __DIR__ . '/public';
+$assets = [
+    ...glob("$publicDir/js/*.js"),
+    ...glob("$publicDir/css/*.css"),
+    ...glob("$publicDir/*.html"),
+];
+
+echo "Precompressing " . count($assets) . " files...\n";
+
+$builder = new CompressionBuilder();
+$builder->addManyFiles($assets, [
+    AlgorithmEnum::Gzip->value => 9,
+    AlgorithmEnum::Brotli->value => 11,
+]);
+
+$results = $builder->compress();
+
+// Save compressed files
+foreach ($results as $result) {
+    if (!$result->isOk()) continue;
+    
+    $filePath = $result->getIdentifier();
+    
+    if ($gzipped = $result->getCompressedFor(AlgorithmEnum::Gzip)) {
+        file_put_contents($filePath . '.gz', $gzipped);
+    }
+    
+    if ($brotli = $result->getCompressedFor(AlgorithmEnum::Brotli)) {
+        file_put_contents($filePath . '.br', $brotli);
+    }
+}
+
+// Generate statistics report
+$stats = CompressionStats::fromResults($results);
+
+echo "\n" . $stats->summary() . "\n";
+
+if ($stats->getFailedItems() > 0) {
+    echo "\n⚠️  Warning: {$stats->getFailedItems()} files failed to compress\n";
+    exit(1);
+}
+
+echo "\n✓ All files compressed successfully!\n";
+```
+
+### Comparing Algorithm Efficiency Across Batch
+
+```php
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\CompressionStats;
+use Aurynx\HttpCompression\AlgorithmEnum;
+
+$files = glob(__DIR__ . '/public/**/*.js');
+
+$builder = new CompressionBuilder();
+$builder->addManyFiles($files, [
+    AlgorithmEnum::Gzip->value => 6,
+    AlgorithmEnum::Brotli->value => 4,
+    AlgorithmEnum::Zstd->value => 3,
+]);
+
+$results = $builder->compress();
+$stats = CompressionStats::fromResults($results);
+
+echo "Algorithm comparison for " . $stats->getTotalItems() . " files:\n\n";
+
+foreach ([AlgorithmEnum::Gzip, AlgorithmEnum::Brotli, AlgorithmEnum::Zstd] as $algo) {
+    if (!$stats->hasAlgorithm($algo)) {
+        continue;
+    }
+    
+    $compressed = $stats->getTotalCompressedBytes($algo);
+    $saved = $stats->getTotalSavedBytes($algo);
+    $avgPercentage = $stats->getAveragePercentage($algo);
+    
+    echo sprintf(
+        "%s:\n  Total: %s\n  Saved: %s\n  Average reduction: %.1f%%\n\n",
+        $algo->value,
+        formatBytes($compressed),
+        formatBytes($saved),
+        $avgPercentage
+    );
+}
+
+// Helper function
+function formatBytes(int $bytes): string {
+    $units = ['B', 'KB', 'MB', 'GB'];
+    $i = 0;
+    while ($bytes >= 1024 && $i < count($units) - 1) {
+        $bytes /= 1024;
+        $i++;
+    }
+    return round($bytes, 2) . ' ' . $units[$i];
+}
+```
+
+### Conditional Batch Processing
+
+Only proceed if compression is effective for the batch:
+
+```php
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\CompressionStats;
+use Aurynx\HttpCompression\AlgorithmEnum;
+
+$files = glob(__DIR__ . '/data/*.json');
+
+$builder = new CompressionBuilder();
+$builder->addManyFiles($files, AlgorithmEnum::Gzip);
+$results = $builder->compress();
+$stats = CompressionStats::fromResults($results);
+
+// Only deploy compressed versions if average compression is >20%
+if ($stats->getAveragePercentage(AlgorithmEnum::Gzip) >= 20.0) {
+    echo "✓ Compression effective, deploying compressed files\n";
+    
+    foreach ($results as $result) {
+        if ($result->isOk()) {
+            $filePath = $result->getIdentifier();
+            $compressed = $result->getCompressedFor(AlgorithmEnum::Gzip);
+            file_put_contents($filePath . '.gz', $compressed);
+        }
+    }
+} else {
+    echo "⚠️  Average compression <20%, skipping deployment\n";
+    echo "Original size: " . $stats->getTotalOriginalBytes() . " bytes\n";
+    echo "Compressed size: " . $stats->getTotalCompressedBytes(AlgorithmEnum::Gzip) . " bytes\n";
+}
+```
+
+### CI/CD Pipeline Integration
+
+Use batch statistics in CI/CD to ensure compression targets are met:
+
+```php
+#!/usr/bin/env php
+<?php
+
+require __DIR__ . '/vendor/autoload.php';
+
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\CompressionStats;
+use Aurynx\HttpCompression\AlgorithmEnum;
+
+$publicDir = __DIR__ . '/public';
+$assets = glob("$publicDir/**/*.{js,css}", GLOB_BRACE);
+
+$builder = new CompressionBuilder();
+$builder->addManyFiles($assets, AlgorithmEnum::Brotli);
+$results = $builder->compress();
+$stats = CompressionStats::fromResults($results);
+
+echo $stats->summary() . "\n\n";
+
+// Validate compression targets
+$failures = [];
+
+if ($stats->getSuccessRate() < 1.0) {
+    $failures[] = "Not all files compressed successfully";
+}
+
+$avgReduction = $stats->getAveragePercentage(AlgorithmEnum::Brotli);
+if ($avgReduction < 30.0) {
+    $failures[] = sprintf(
+        "Average compression (%.1f%%) below target (30%%)",
+        $avgReduction
+    );
+}
+
+$totalSaved = $stats->getTotalSavedBytes(AlgorithmEnum::Brotli);
+$minSaved = 100 * 1024; // 100KB minimum
+if ($totalSaved < $minSaved) {
+    $failures[] = sprintf(
+        "Total saved (%d bytes) below minimum (%d bytes)",
+        $totalSaved,
+        $minSaved
+    );
+}
+
+if (!empty($failures)) {
+    echo "❌ Compression validation failed:\n";
+    foreach ($failures as $failure) {
+        echo "  - $failure\n";
+    }
+    exit(1);
+}
+
+echo "✅ Compression targets met!\n";
+exit(0);
+```
+
 ## Algorithm Performance Comparison
 
 Benchmark different algorithms to choose the best for your use case:

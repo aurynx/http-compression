@@ -31,7 +31,7 @@ enum AlgorithmEnum: string
     {
         return array_filter(
             self::cases(),
-            static fn(self $algo): bool => $algo->isAvailable()
+            static fn (self $algo): bool => $algo->isAvailable()
         );
     }
 

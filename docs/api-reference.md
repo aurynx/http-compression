@@ -289,6 +289,51 @@ Get the maximum compression level.
 
 ---
 
+#### validateLevel()
+
+```php
+validateLevel(int $level): void
+```
+
+Validate that a compression level is within the valid range for this algorithm.
+
+**Parameters:**
+- `$level` — The compression level to validate
+
+**Throws:** `CompressionException` with `LEVEL_OUT_OF_RANGE` if level is invalid
+
+**Example:**
+```php
+$algo = AlgorithmEnum::Gzip;
+$algo->validateLevel(6); // OK
+$algo->validateLevel(15); // Throws CompressionException
+```
+
+---
+
+#### getRequiredExtension()
+
+```php
+getRequiredExtension(): string
+```
+
+Get the name of the PHP extension required for this algorithm.
+
+**Returns:** Extension name (gzip: 'zlib', brotli: 'brotli', zstd: 'zstd')
+
+**Example:**
+```php
+$algo = AlgorithmEnum::Brotli;
+echo $algo->getRequiredExtension(); // 'brotli'
+
+// Check if extension is loaded
+if (!extension_loaded($algo->getRequiredExtension())) {
+    echo "Missing extension: {$algo->getRequiredExtension()}\n";
+}
+```
+
+---
+
 ## CompressionResult
 
 Result object for a single compression operation.
@@ -441,6 +486,47 @@ Get complete failure exception (when `isError()` is true).
 
 ---
 
+#### getErrorMessage()
+
+```php
+getErrorMessage(): ?string
+```
+
+Get error message from complete failure exception (convenience method).
+
+**Returns:** Error message string or `null` if no error
+
+**Example:**
+```php
+if ($result->isError()) {
+    echo "Error: " . $result->getErrorMessage();
+}
+```
+
+---
+
+#### hasPartialFailures()
+
+```php
+hasPartialFailures(): bool
+```
+
+Check if this result has any per-algorithm failures (useful for partial success scenarios).
+
+**Returns:** `true` if at least one algorithm failed while others succeeded, `false` otherwise
+
+**Example:**
+```php
+if ($result->hasPartialFailures()) {
+    echo "Some algorithms failed:\n";
+    foreach ($result->getAlgorithmErrors() as $algo => $error) {
+        echo "  - {$algo}: {$error['message']}\n";
+    }
+}
+```
+
+---
+
 #### getAlgorithmErrors()
 
 ```php
@@ -450,6 +536,29 @@ getAlgorithmErrors(): array<string, array{code:int, message:string}>
 Get per-algorithm errors (for partial failures).
 
 **Returns:** Array mapping algorithm name to error details
+
+---
+
+#### hasAlgorithmError()
+
+```php
+hasAlgorithmError(AlgorithmEnum $algorithm): bool
+```
+
+Check if a specific algorithm failed.
+
+**Parameters:**
+- `$algorithm` — The algorithm enum
+
+**Returns:** `true` if this algorithm failed, `false` otherwise
+
+**Example:**
+```php
+if ($result->hasAlgorithmError(AlgorithmEnum::Brotli)) {
+    $error = $result->getAlgorithmError(AlgorithmEnum::Brotli);
+    echo "Brotli failed: {$error['message']}\n";
+}
+```
 
 ---
 
@@ -465,6 +574,366 @@ Get error for a specific algorithm.
 - `$algorithm` — The algorithm enum
 
 **Returns:** Error array with 'code' and 'message' keys, or `null` if no error
+
+---
+
+### Compression Metrics Methods
+
+#### getOriginalSize()
+
+```php
+getOriginalSize(): ?int
+```
+
+Get original uncompressed size in bytes.
+
+**Returns:** Original size in bytes, or `null` if not available
+
+**Example:**
+```php
+$result = $builder->compress()[0];
+echo "Original: " . $result->getOriginalSize() . " bytes\n";
+```
+
+---
+
+#### getCompressedSize()
+
+```php
+getCompressedSize(AlgorithmEnum $algorithm): ?int
+```
+
+Get compressed size for a specific algorithm in bytes.
+
+**Parameters:**
+- `$algorithm` — The algorithm enum
+
+**Returns:** Compressed size in bytes, or `null` if algorithm wasn't used
+
+**Example:**
+```php
+$size = $result->getCompressedSize(AlgorithmEnum::Gzip);
+echo "Compressed (gzip): $size bytes\n";
+```
+
+---
+
+#### getCompressionRatio()
+
+```php
+getCompressionRatio(AlgorithmEnum $algorithm): ?float
+```
+
+Get compression ratio for a specific algorithm (0.0 to 1.0).
+
+**Parameters:**
+- `$algorithm` — The algorithm enum
+
+**Returns:** Ratio of compressed/original size (e.g., 0.42 means 42% of original), or `null` if not available
+
+**Example:**
+```php
+$ratio = $result->getCompressionRatio(AlgorithmEnum::Gzip);
+echo "Compression ratio: " . ($ratio * 100) . "%\n";
+```
+
+---
+
+#### getSavedBytes()
+
+```php
+getSavedBytes(AlgorithmEnum $algorithm): ?int
+```
+
+Get bytes saved by compression for a specific algorithm.
+
+**Parameters:**
+- `$algorithm` — The algorithm enum
+
+**Returns:** Number of bytes saved (negative if compressed is larger), or `null` if not available
+
+**Example:**
+```php
+$saved = $result->getSavedBytes(AlgorithmEnum::Gzip);
+echo "Saved: $saved bytes\n";
+```
+
+---
+
+#### getCompressionPercentage()
+
+```php
+getCompressionPercentage(AlgorithmEnum $algorithm): ?float
+```
+
+Get compression percentage for a specific algorithm.
+
+**Parameters:**
+- `$algorithm` — The algorithm enum
+
+**Returns:** Percentage reduction (e.g., 58.0 means 58% size reduction), or `null` if not available
+
+**Example:**
+```php
+$percentage = $result->getCompressionPercentage(AlgorithmEnum::Gzip);
+echo "Reduced by: $percentage%\n";
+```
+
+---
+
+#### isEffective()
+
+```php
+isEffective(AlgorithmEnum $algorithm): ?bool
+```
+
+Check if compression was effective for a specific algorithm.
+
+**Parameters:**
+- `$algorithm` — The algorithm enum
+
+**Returns:** `true` if compressed size is smaller than original, `false` if not effective, `null` if no metadata available
+
+**Example:**
+```php
+if ($result->isEffective(AlgorithmEnum::Gzip)) {
+    echo "Compression was effective!\n";
+}
+```
+
+---
+
+## CompressionStats
+
+Aggregated compression statistics for batch operations.
+
+### Static Factory Method
+
+#### fromResults()
+
+```php
+static fromResults(array<CompressionResult> $results): CompressionStats
+```
+
+Create statistics from an array of CompressionResult objects.
+
+**Parameters:**
+- `$results` — Array of `CompressionResult` objects from batch compression
+
+**Returns:** `CompressionStats` instance with aggregated metrics
+
+**Example:**
+```php
+$results = $builder->compress();
+$stats = CompressionStats::fromResults($results);
+
+echo "Compressed {$stats->getTotalItems()} files\n";
+echo "Saved {$stats->getTotalSavedBytes(AlgorithmEnum::Gzip)} bytes\n";
+```
+
+---
+
+### Item Count Methods
+
+#### getTotalItems()
+
+```php
+getTotalItems(): int
+```
+
+Get total number of items processed.
+
+**Returns:** Total item count
+
+---
+
+#### getSuccessfulItems()
+
+```php
+getSuccessfulItems(): int
+```
+
+Get number of successfully compressed items.
+
+**Returns:** Successful item count
+
+---
+
+#### getFailedItems()
+
+```php
+getFailedItems(): int
+```
+
+Get number of failed items.
+
+**Returns:** Failed item count
+
+---
+
+#### getSuccessRate()
+
+```php
+getSuccessRate(): float
+```
+
+Get success rate (0.0 to 1.0).
+
+**Returns:** Success rate as a float (e.g., 0.95 = 95% success)
+
+**Example:**
+```php
+$rate = $stats->getSuccessRate();
+echo sprintf("Success rate: %.1f%%", $rate * 100);
+```
+
+---
+
+### Aggregated Size Methods
+
+#### getTotalOriginalBytes()
+
+```php
+getTotalOriginalBytes(): int
+```
+
+Get total original size across all items in bytes.
+
+**Returns:** Total original size in bytes
+
+---
+
+#### getTotalCompressedBytes()
+
+```php
+getTotalCompressedBytes(AlgorithmEnum $algorithm): ?int
+```
+
+Get total compressed size for a specific algorithm in bytes.
+
+**Parameters:**
+- `$algorithm` — The algorithm enum
+
+**Returns:** Total compressed size in bytes, or `null` if algorithm wasn't used
+
+**Example:**
+```php
+$totalGzip = $stats->getTotalCompressedBytes(AlgorithmEnum::Gzip);
+echo "Total compressed (gzip): $totalGzip bytes\n";
+```
+
+---
+
+#### getTotalSavedBytes()
+
+```php
+getTotalSavedBytes(AlgorithmEnum $algorithm): ?int
+```
+
+Get total bytes saved for a specific algorithm across all items.
+
+**Parameters:**
+- `$algorithm` — The algorithm enum
+
+**Returns:** Total bytes saved, or `null` if algorithm wasn't used
+
+**Example:**
+```php
+$saved = $stats->getTotalSavedBytes(AlgorithmEnum::Gzip);
+echo "Total saved: $saved bytes\n";
+```
+
+---
+
+### Average Metrics Methods
+
+#### getAverageRatio()
+
+```php
+getAverageRatio(AlgorithmEnum $algorithm): ?float
+```
+
+Get average compression ratio for a specific algorithm (0.0 to 1.0).
+
+**Parameters:**
+- `$algorithm` — The algorithm enum
+
+**Returns:** Average ratio of compressed/original size, or `null` if algorithm wasn't used
+
+---
+
+#### getAveragePercentage()
+
+```php
+getAveragePercentage(AlgorithmEnum $algorithm): ?float
+```
+
+Get average compression percentage for a specific algorithm.
+
+**Parameters:**
+- `$algorithm` — The algorithm enum
+
+**Returns:** Average percentage reduction (e.g., 58.0 means 58% average reduction), or `null` if algorithm wasn't used
+
+**Example:**
+```php
+$avgPercentage = $stats->getAveragePercentage(AlgorithmEnum::Gzip);
+echo "Average compression: $avgPercentage%\n";
+```
+
+---
+
+### Algorithm Info Methods
+
+#### hasAlgorithm()
+
+```php
+hasAlgorithm(AlgorithmEnum $algorithm): bool
+```
+
+Check if any items used the specified algorithm.
+
+**Parameters:**
+- `$algorithm` — The algorithm enum
+
+**Returns:** `true` if at least one item used this algorithm
+
+---
+
+#### getAlgorithms()
+
+```php
+getAlgorithms(): array<string>
+```
+
+Get list of algorithms used across all items.
+
+**Returns:** Array of algorithm names
+
+---
+
+### Utility Methods
+
+#### summary()
+
+```php
+summary(): string
+```
+
+Format statistics as a human-readable string.
+
+**Returns:** Multi-line formatted summary string
+
+**Example:**
+```php
+echo $stats->summary();
+// Output:
+// Compression Statistics:
+//   Total items: 50
+//   Successful: 50
+//   Original size: 125.45 KB
+//   gzip: 42.31 KB (saved 83.14 KB, 66.3% reduction)
+```
 
 ---
 
@@ -485,20 +954,16 @@ Set algorithms for this item.
 
 **Returns:** `CompressionBuilder` instance for continued chaining
 
----
-
-### withMaxBytes()
-
+**Example:**
 ```php
-withMaxBytes(?int $maxBytes): CompressionBuilder
+$builder = new CompressionBuilder();
+$builder->add('Content', AlgorithmEnum::Gzip, 'my-id');
+$builder->forItem('my-id')
+    ->withAlgorithms([
+        AlgorithmEnum::Gzip->value => 9,
+        AlgorithmEnum::Brotli->value => 11
+    ]);
 ```
-
-Set a size limit for this item.
-
-**Parameters:**
-- `$maxBytes` — Maximum payload size in bytes, or `null` to use builder's default
-
-**Returns:** `CompressionBuilder` instance for continued chaining
 
 ---
 
@@ -591,6 +1056,7 @@ Enum with machine-readable error codes.
 - `FILE_NOT_READABLE` (1005) — File is not readable (permissions issue)
 - `PAYLOAD_TOO_LARGE` (1006) — Payload exceeds `maxBytes` limit
 - `COMPRESSION_FAILED` (1007) — Compression operation failed
+- `DECOMPRESSION_FAILED` (1008) — Decompression operation failed
 - `DUPLICATE_IDENTIFIER` (1009) — Item with identifier already exists
 - `ITEM_NOT_FOUND` (1010) — Item with identifier not found
 - `INVALID_ALGORITHM_SPEC` (1011) — Invalid algorithm specification format
