@@ -6,8 +6,8 @@ namespace Aurynx\HttpCompression\Algorithms;
 
 use Aurynx\HttpCompression\AlgorithmEnum;
 use Aurynx\HttpCompression\CompressionException;
-use Aurynx\HttpCompression\CompressorInterface;
-use Aurynx\HttpCompression\ErrorCode;
+use Aurynx\HttpCompression\Contracts\CompressorInterface;
+use Aurynx\HttpCompression\ErrorCodeEnum;
 
 final class GzipCompressor implements CompressorInterface
 {
@@ -19,7 +19,7 @@ final class GzipCompressor implements CompressorInterface
             $ext = $algorithm->getRequiredExtension();
             throw new CompressionException(
                 sprintf('%s extension not available; install/enable ext-%s', $ext, $ext),
-                ErrorCode::ALGORITHM_UNAVAILABLE->value
+                ErrorCodeEnum::ALGORITHM_UNAVAILABLE->value
             );
         }
 
@@ -31,7 +31,7 @@ final class GzipCompressor implements CompressorInterface
         if ($result === false) {
             throw new CompressionException(
                 'Gzip compression failed',
-                ErrorCode::COMPRESSION_FAILED->value
+                ErrorCodeEnum::COMPRESSION_FAILED->value
             );
         }
 
@@ -46,7 +46,7 @@ final class GzipCompressor implements CompressorInterface
             $ext = $algorithm->getRequiredExtension();
             throw new CompressionException(
                 sprintf('%s extension not available; install/enable ext-%s', $ext, $ext),
-                ErrorCode::ALGORITHM_UNAVAILABLE->value
+                ErrorCodeEnum::ALGORITHM_UNAVAILABLE->value
             );
         }
 
@@ -55,7 +55,7 @@ final class GzipCompressor implements CompressorInterface
         if ($result === false) {
             throw new CompressionException(
                 'Gzip decompression failed',
-                ErrorCode::DECOMPRESSION_FAILED->value
+                ErrorCodeEnum::DECOMPRESSION_FAILED->value
             );
         }
 

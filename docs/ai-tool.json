@@ -23,7 +23,7 @@
         { "name": "forLast", "params": [], "returns": "ItemConfigurator" },
         { "name": "failFast", "params": [], "returns": "self", "default": true },
         { "name": "graceful", "params": [], "returns": "self" },
-        { "name": "compress", "params": [], "returns": "array<string, CompressionResult>" }
+        { "name": "compress", "params": [], "returns": "array<string, CompressionResultDto>" }
       ]
     }
   ],

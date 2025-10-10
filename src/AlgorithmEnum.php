@@ -92,7 +92,7 @@ enum AlgorithmEnum: string
                     $this->getMinLevel(),
                     $this->getMaxLevel()
                 ),
-                ErrorCode::LEVEL_OUT_OF_RANGE->value
+                ErrorCodeEnum::LEVEL_OUT_OF_RANGE->value
             );
         }
     }

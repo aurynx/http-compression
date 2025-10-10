@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Aurynx\HttpCompression\AlgorithmEnum;
 use Aurynx\HttpCompression\CompressionBuilder;
-use Aurynx\HttpCompression\CompressionResult;
 use Aurynx\HttpCompression\CompressorFactory;
+use Aurynx\HttpCompression\DTO\CompressionResultDto;
 
 beforeEach(function () {
     $this->testDir = sys_get_temp_dir() . '/compressor_test_' . uniqid();
@@ -38,7 +38,7 @@ test('compress single raw data with single algorithm', function () {
     expect($results)->toHaveCount(1);
 
     $result = array_values($results)[0];
-    expect($result)->toBeInstanceOf(CompressionResult::class);
+    expect($result)->toBeInstanceOf(CompressionResultDto::class);
     expect($result->isOk())->toBeTrue();
 
     $compressed = $result->getCompressed();
@@ -59,7 +59,7 @@ test('compress single file with single algorithm', function () {
     expect($results)->toHaveCount(1);
 
     $result = array_values($results)[0];
-    expect($result)->toBeInstanceOf(CompressionResult::class);
+    expect($result)->toBeInstanceOf(CompressionResultDto::class);
     expect($result->isOk())->toBeTrue();
     expect($result->getCompressed())->toHaveKey('gzip');
 });
@@ -74,7 +74,7 @@ test('compress array of raw data with single algorithm', function () {
     expect($results)->toHaveCount(3);
 
     foreach ($results as $result) {
-        expect($result)->toBeInstanceOf(CompressionResult::class);
+        expect($result)->toBeInstanceOf(CompressionResultDto::class);
         expect($result->isOk())->toBeTrue();
         expect($result->getCompressed())->toHaveKey('gzip');
     }
@@ -95,7 +95,7 @@ test('compress array of files with single algorithm', function () {
     expect($results)->toHaveCount(2);
 
     foreach ($results as $result) {
-        expect($result)->toBeInstanceOf(CompressionResult::class);
+        expect($result)->toBeInstanceOf(CompressionResultDto::class);
         expect($result->isOk())->toBeTrue();
     }
 });
@@ -114,7 +114,7 @@ test('compress mixed array with single algorithm', function () {
     expect($results)->toHaveCount(2);
 
     foreach ($results as $result) {
-        expect($result)->toBeInstanceOf(CompressionResult::class);
+        expect($result)->toBeInstanceOf(CompressionResultDto::class);
         expect($result->isOk())->toBeTrue();
     }
 });
@@ -129,7 +129,7 @@ test('compress single data with multiple algorithms', function () {
     expect($results)->toHaveCount(1);
 
     $result = array_values($results)[0];
-    expect($result)->toBeInstanceOf(CompressionResult::class);
+    expect($result)->toBeInstanceOf(CompressionResultDto::class);
     expect($result->isOk())->toBeTrue();
 
     $compressed = $result->getCompressed();
@@ -150,7 +150,7 @@ test('compress single data with algorithms and custom levels', function () {
     expect($results)->toHaveCount(1);
 
     $result = array_values($results)[0];
-    expect($result)->toBeInstanceOf(CompressionResult::class);
+    expect($result)->toBeInstanceOf(CompressionResultDto::class);
     expect($result->isOk())->toBeTrue();
 
     $compressed = $result->getCompressed();
@@ -168,7 +168,7 @@ test('compress array of data with multiple algorithms', function () {
     expect($results)->toHaveCount(2);
 
     foreach ($results as $result) {
-        expect($result)->toBeInstanceOf(CompressionResult::class);
+        expect($result)->toBeInstanceOf(CompressionResultDto::class);
         expect($result->isOk())->toBeTrue();
 
         $compressed = $result->getCompressed();
@@ -234,6 +234,6 @@ test('compress file without file:// prefix works', function () {
     expect($results)->toHaveCount(1);
 
     $result = array_values($results)[0];
-    expect($result)->toBeInstanceOf(CompressionResult::class);
+    expect($result)->toBeInstanceOf(CompressionResultDto::class);
     expect($result->isOk())->toBeTrue();
 });

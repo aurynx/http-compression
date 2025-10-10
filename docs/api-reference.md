@@ -162,12 +162,12 @@ Enable graceful mode (continue on errors, collect them in results).
 #### compress()
 
 ```php
-compress(): array<string, CompressionResult>
+compress(): array<string, CompressionResultDto>
 ```
 
 Execute compression and return results indexed by identifier.
 
-**Returns:** Array of `CompressionResult` objects indexed by item identifier
+**Returns:** Array of `CompressionResultDto` objects indexed by item identifier
 
 **Throws:** `CompressionException` in fail-fast mode when error occurs
 
@@ -334,7 +334,7 @@ if (!extension_loaded($algo->getRequiredExtension())) {
 
 ---
 
-## CompressionResult
+## CompressionResultDto
 
 Result object for a single compression operation.
 
@@ -703,7 +703,7 @@ if ($result->isEffective(AlgorithmEnum::Gzip)) {
 
 ---
 
-## CompressionStats
+## CompressionStatsDto
 
 Aggregated compression statistics for batch operations.
 
@@ -712,20 +712,20 @@ Aggregated compression statistics for batch operations.
 #### fromResults()
 
 ```php
-static fromResults(array<CompressionResult> $results): CompressionStats
+static fromResults(array<CompressionResultDto> $results): CompressionStatsDto
 ```
 
-Create statistics from an array of CompressionResult objects.
+Create statistics from an array of CompressionResultDto objects.
 
 **Parameters:**
-- `$results` — Array of `CompressionResult` objects from batch compression
+- `$results` — Array of `CompressionResultDto` objects from batch compression
 
-**Returns:** `CompressionStats` instance with aggregated metrics
+**Returns:** `CompressionStatsDto` instance with aggregated metrics
 
 **Example:**
 ```php
 $results = $builder->compress();
-$stats = CompressionStats::fromResults($results);
+$stats = CompressionStatsDto::fromResults($results);
 
 echo "Compressed {$stats->getTotalItems()} files\n";
 echo "Saved {$stats->getTotalSavedBytes(AlgorithmEnum::Gzip)} bytes\n";
@@ -1043,7 +1043,7 @@ $compressed = $compressor->compress('data', 6);
 
 ---
 
-## ErrorCode
+## ErrorCodeEnum
 
 Enum with machine-readable error codes.
 
@@ -1079,7 +1079,7 @@ new CompressionException(string $message, int $code)
 
 **Parameters:**
 - `$message` — Error message
-- `$code` — Error code from `ErrorCode` enum
+- `$code` — Error code from `ErrorCodeEnum` enum
 
 ### Methods
 

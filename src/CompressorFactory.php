@@ -7,6 +7,7 @@ namespace Aurynx\HttpCompression;
 use Aurynx\HttpCompression\Algorithms\BrotliCompressor;
 use Aurynx\HttpCompression\Algorithms\GzipCompressor;
 use Aurynx\HttpCompression\Algorithms\ZstdCompressor;
+use Aurynx\HttpCompression\Contracts\CompressorInterface;
 
 final class CompressorFactory
 {

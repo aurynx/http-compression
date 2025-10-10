@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Aurynx\HttpCompression\CompressionBuilder;
 use Aurynx\HttpCompression\CompressionException;
-use Aurynx\HttpCompression\ErrorCode;
+use Aurynx\HttpCompression\ErrorCodeEnum;
 
 it('throws INVALID_LEVEL_TYPE when string key maps to non-integer level', function () {
     $builder = new CompressionBuilder();
@@ -13,7 +13,7 @@ it('throws INVALID_LEVEL_TYPE when string key maps to non-integer level', functi
         $builder->withDefaultAlgorithms(['gzip' => '9']);
         expect()->fail('Expected CompressionException was not thrown');
     } catch (CompressionException $e) {
-        expect($e->getCode())->toBe(ErrorCode::INVALID_LEVEL_TYPE->value);
+        expect($e->getCode())->toBe(ErrorCodeEnum::INVALID_LEVEL_TYPE->value);
         expect($e->getMessage())->toContain('gzip');
         expect($e->getMessage())->toContain('got string');
     }

@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Aurynx\HttpCompression;
+namespace Aurynx\HttpCompression\DTO;
+
+use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressionException;
 
 /**
  * Represents the result of a compression operation
@@ -15,7 +18,7 @@ namespace Aurynx\HttpCompression;
  * - isError(): bool - true when complete failure (no algorithms succeeded)
  * - getCompressed(): array<string, string> - all successful compressed payloads
  */
-final readonly class CompressionResult
+final readonly class CompressionResultDto
 {
     /**
      * @param string $identifier Item identifier
@@ -38,9 +41,9 @@ final readonly class CompressionResult
     /**
      * Create a result representing a complete error
      */
-    public static function createError(string $identifier, CompressionException $error): CompressionResult
+    public static function createError(string $identifier, CompressionException $error): CompressionResultDto
     {
-        return new CompressionResult($identifier, [], $error, [], [], null);
+        return new CompressionResultDto($identifier, [], $error, [], [], null);
     }
 
     /**
@@ -56,8 +59,8 @@ final readonly class CompressionResult
         array $algorithmErrors,
         array $metadata = [],
         ?int $originalSize = null
-    ): CompressionResult {
-        return new CompressionResult($identifier, $compressed, null, $algorithmErrors, $metadata, $originalSize);
+    ): CompressionResultDto {
+        return new CompressionResultDto($identifier, $compressed, null, $algorithmErrors, $metadata, $originalSize);
     }
 
     public function getIdentifier(): string

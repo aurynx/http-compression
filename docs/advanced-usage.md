@@ -115,10 +115,7 @@ class CompressionMiddleware implements MiddlewareInterface
 You can implement `CompressorInterface` to add support for custom algorithms or wrappers:
 
 ```php
-use Aurynx\HttpCompression\CompressorInterface;
-use Aurynx\HttpCompression\AlgorithmEnum;
-use Aurynx\HttpCompression\CompressionException;
-use Aurynx\HttpCompression\ErrorCode;
+use Aurynx\HttpCompression\AlgorithmEnum;use Aurynx\HttpCompression\CompressionException;use Aurynx\HttpCompression\Contracts\CompressorInterface;use Aurynx\HttpCompression\ErrorCodeEnum;
 
 class LZ4Compressor implements CompressorInterface
 {
@@ -127,7 +124,7 @@ class LZ4Compressor implements CompressorInterface
         if (!extension_loaded('lz4')) {
             throw new CompressionException(
                 'LZ4 extension not available',
-                ErrorCode::ALGORITHM_UNAVAILABLE->value
+                ErrorCodeEnum::ALGORITHM_UNAVAILABLE->value
             );
         }
         
@@ -136,7 +133,7 @@ class LZ4Compressor implements CompressorInterface
         if ($compressed === false) {
             throw new CompressionException(
                 'LZ4 compression failed',
-                ErrorCode::COMPRESSION_FAILED->value
+                ErrorCodeEnum::COMPRESSION_FAILED->value
             );
         }
         
@@ -150,7 +147,7 @@ class LZ4Compressor implements CompressorInterface
         if ($decompressed === false) {
             throw new CompressionException(
                 'LZ4 decompression failed',
-                ErrorCode::COMPRESSION_FAILED->value
+                ErrorCodeEnum::COMPRESSION_FAILED->value
             );
         }
         
@@ -175,9 +172,7 @@ $compressed = $compressor->compress('test data', level: 5);
 Direct access makes it easy to mock compressor behavior in tests:
 
 ```php
-use PHPUnit\Framework\TestCase;
-use Aurynx\HttpCompression\CompressorInterface;
-use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\AlgorithmEnum;use Aurynx\HttpCompression\Contracts\CompressorInterface;use PHPUnit\Framework\TestCase;
 
 class CompressionServiceTest extends TestCase
 {
@@ -208,7 +203,7 @@ class CompressionServiceTest extends TestCase
         $mockCompressor->method('compress')
             ->willThrowException(new CompressionException(
                 'Simulated failure',
-                ErrorCode::COMPRESSION_FAILED->value
+                ErrorCodeEnum::COMPRESSION_FAILED->value
             ));
         
         $service = new CompressionService($mockCompressor);
@@ -564,14 +559,14 @@ function smartCompress(string $content, string $acceptEncoding): array
 
 ## Batch Compression Statistics
 
-When compressing multiple files or content items, use `CompressionStats` to get aggregated metrics across the entire batch:
+When compressing multiple files or content items, use `CompressionStatsDto` to get aggregated metrics across the entire batch:
 
 ### Basic Batch Statistics
 
 ```php
-use Aurynx\HttpCompression\CompressionBuilder;
-use Aurynx\HttpCompression\CompressionStats;
 use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\DTO\CompressionStatsDto;
 
 $publicDir = __DIR__ . '/public';
 $assets = glob("$publicDir/**/*.{js,css,html}", GLOB_BRACE);
@@ -583,7 +578,7 @@ $builder->addManyFiles($assets, [
 ]);
 
 $results = $builder->compress();
-$stats = CompressionStats::fromResults($results);
+$stats = CompressionStatsDto::fromResults($results);
 
 // Print summary
 echo $stats->summary();
@@ -608,7 +603,7 @@ function compressAndLogBatch(array $files, LoggerInterface $logger): void
     $builder->addManyFiles($files, AlgorithmEnum::Gzip);
     
     $results = $builder->compress();
-    $stats = CompressionStats::fromResults($results);
+    $stats = CompressionStatsDto::fromResults($results);
     
     $logger->info('Batch compression completed', [
         'total_items' => $stats->getTotalItems(),
@@ -628,9 +623,9 @@ function compressAndLogBatch(array $files, LoggerInterface $logger): void
 Generate a report for precompressed static assets:
 
 ```php
-use Aurynx\HttpCompression\CompressionBuilder;
-use Aurynx\HttpCompression\CompressionStats;
 use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\DTO\CompressionStatsDto;
 
 $publicDir = __DIR__ . '/public';
 $assets = [
@@ -651,7 +646,7 @@ $results = $builder->compress();
 
 // Save compressed files
 foreach ($results as $result) {
-    if (!$result->isOk()) continue;
+    if (!$result->isOk()) {continue;}
     
     $filePath = $result->getIdentifier();
     
@@ -665,7 +660,7 @@ foreach ($results as $result) {
 }
 
 // Generate statistics report
-$stats = CompressionStats::fromResults($results);
+$stats = CompressionStatsDto::fromResults($results);
 
 echo "\n" . $stats->summary() . "\n";
 
@@ -680,9 +675,9 @@ echo "\n✓ All files compressed successfully!\n";
 ### Comparing Algorithm Efficiency Across Batch
 
 ```php
-use Aurynx\HttpCompression\CompressionBuilder;
-use Aurynx\HttpCompression\CompressionStats;
 use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\DTO\CompressionStatsDto;
 
 $files = glob(__DIR__ . '/public/**/*.js');
 
@@ -694,7 +689,7 @@ $builder->addManyFiles($files, [
 ]);
 
 $results = $builder->compress();
-$stats = CompressionStats::fromResults($results);
+$stats = CompressionStatsDto::fromResults($results);
 
 echo "Algorithm comparison for " . $stats->getTotalItems() . " files:\n\n";
 
@@ -733,16 +728,16 @@ function formatBytes(int $bytes): string {
 Only proceed if compression is effective for the batch:
 
 ```php
-use Aurynx\HttpCompression\CompressionBuilder;
-use Aurynx\HttpCompression\CompressionStats;
 use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\DTO\CompressionStatsDto;
 
 $files = glob(__DIR__ . '/data/*.json');
 
 $builder = new CompressionBuilder();
 $builder->addManyFiles($files, AlgorithmEnum::Gzip);
 $results = $builder->compress();
-$stats = CompressionStats::fromResults($results);
+$stats = CompressionStatsDto::fromResults($results);
 
 // Only deploy compressed versions if average compression is >20%
 if ($stats->getAveragePercentage(AlgorithmEnum::Gzip) >= 20.0) {
@@ -772,9 +767,9 @@ Use batch statistics in CI/CD to ensure compression targets are met:
 
 require __DIR__ . '/vendor/autoload.php';
 
-use Aurynx\HttpCompression\CompressionBuilder;
-use Aurynx\HttpCompression\CompressionStats;
 use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\DTO\CompressionStatsDto;
 
 $publicDir = __DIR__ . '/public';
 $assets = glob("$publicDir/**/*.{js,css}", GLOB_BRACE);
@@ -782,7 +777,7 @@ $assets = glob("$publicDir/**/*.{js,css}", GLOB_BRACE);
 $builder = new CompressionBuilder();
 $builder->addManyFiles($assets, AlgorithmEnum::Brotli);
 $results = $builder->compress();
-$stats = CompressionStats::fromResults($results);
+$stats = CompressionStatsDto::fromResults($results);
 
 echo $stats->summary() . "\n\n";
 

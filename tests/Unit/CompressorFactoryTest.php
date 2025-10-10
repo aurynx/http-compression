@@ -7,7 +7,7 @@ use Aurynx\HttpCompression\Algorithms\BrotliCompressor;
 use Aurynx\HttpCompression\Algorithms\GzipCompressor;
 use Aurynx\HttpCompression\Algorithms\ZstdCompressor;
 use Aurynx\HttpCompression\CompressorFactory;
-use Aurynx\HttpCompression\CompressorInterface;
+use Aurynx\HttpCompression\Contracts\CompressorInterface;
 
 test('factory creates gzip compressor', function () {
     $compressor = CompressorFactory::create(AlgorithmEnum::Gzip);

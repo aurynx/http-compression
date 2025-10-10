@@ -7,7 +7,7 @@ namespace Aurynx\HttpCompression;
 /**
  * Machine-readable error codes for compression exceptions
  */
-enum ErrorCode: int
+enum ErrorCodeEnum: int
 {
     case UNKNOWN_ALGORITHM      = 1001;
     case ALGORITHM_UNAVAILABLE  = 1002;

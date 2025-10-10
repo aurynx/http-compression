@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Aurynx\HttpCompression;
+namespace Aurynx\HttpCompression\DTO;
+
+use Aurynx\HttpCompression\AlgorithmEnum;
 
 /**
  * Aggregated compression statistics for batch operations
  */
-final readonly class CompressionStats
+final readonly class CompressionStatsDto
 {
     /**
      * @param int $totalItems Total number of items processed
@@ -32,7 +34,7 @@ final readonly class CompressionStats
     /**
      * Create statistics from an array of CompressionResult objects
      *
-     * @param array<CompressionResult> $results
+     * @param array<CompressionResultDto> $results
      */
     public static function fromResults(array $results): self
     {

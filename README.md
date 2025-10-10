@@ -88,7 +88,7 @@ For a detailed guide and server integration examples, see [docs/ai.md](docs/ai.m
 1. Create `CompressionBuilder()`. Use `graceful()` for user-facing paths, `failFast()` for build steps.
 2. Add payloads via `add()` or `addFile()`; for batches use `addMany()` / `addManyFiles()`.
 3. Choose algorithms by `Accept-Encoding` (prefer `br`, then `zstd`, then `gzip`).
-4. Call `compress()`; inspect `CompressionResult`:
+4. Call `compress()`; inspect `CompressionResultDto`:
     - `isOk()` → use `getCompressed()` or `getCompressedFor()`
     - `isPartial()` → use successes and log `getAlgorithmErrors()`
     - `isError()` → fall back to identity
@@ -383,7 +383,7 @@ $result->getIdentifier(); // Item identifier
 Get aggregated metrics when compressing multiple files:
 
 ```php
-use Aurynx\HttpCompression\CompressionStats;
+use Aurynx\HttpCompression\DTO\CompressionStatsDto;
 
 // Access individual result by identifier
 // foreach ($results as $id => $result) { ... }
@@ -393,7 +393,7 @@ $builder->addManyFiles($files, AlgorithmEnum::Gzip);
 $results = $builder->compress();
 
 // Get aggregated statistics
-$stats = CompressionStats::fromResults($results);
+$stats = CompressionStatsDto::fromResults($results);
 
 echo $stats->summary();
 // Output:

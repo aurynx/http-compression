@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use Aurynx\HttpCompression\AlgorithmEnum as Algo;
 use Aurynx\HttpCompression\CompressionBuilder;
-use Aurynx\HttpCompression\CompressionResult as Result;
-use Aurynx\HttpCompression\ErrorCode as Err;
+use Aurynx\HttpCompression\DTO\CompressionResultDto as Result;
+use Aurynx\HttpCompression\ErrorCodeEnum as Err;
 
 it('keeps codes for partial errors (brotli unavailable)', function () {
     $builder = new CompressionBuilder();

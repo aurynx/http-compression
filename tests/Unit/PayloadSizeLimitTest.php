@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Aurynx\HttpCompression\AlgorithmEnum;
 use Aurynx\HttpCompression\CompressionBuilder;
 use Aurynx\HttpCompression\CompressionException;
-use Aurynx\HttpCompression\ErrorCode;
+use Aurynx\HttpCompression\ErrorCodeEnum;
 
 it('throws PAYLOAD_TOO_LARGE for raw content over limit (failFast)', function () {
     $builder = new CompressionBuilder(maxBytes: 10);
@@ -17,7 +17,7 @@ it('throws PAYLOAD_TOO_LARGE for raw content over limit (failFast)', function ()
         $builder->compress();
         expect()->fail('Expected CompressionException was not thrown');
     } catch (CompressionException $e) {
-        expect($e->getCode())->toBe(ErrorCode::PAYLOAD_TOO_LARGE->value);
+        expect($e->getCode())->toBe(ErrorCodeEnum::PAYLOAD_TOO_LARGE->value);
         expect($e->getMessage())->toContain('Content size');
     }
 });
@@ -34,7 +34,7 @@ it('throws PAYLOAD_TOO_LARGE for file over limit (failFast)', function () {
         $builder->compress();
         expect()->fail('Expected CompressionException was not thrown');
     } catch (CompressionException $e) {
-        expect($e->getCode())->toBe(ErrorCode::PAYLOAD_TOO_LARGE->value);
+        expect($e->getCode())->toBe(ErrorCodeEnum::PAYLOAD_TOO_LARGE->value);
         expect($e->getMessage())->toContain('File size');
     } finally {
         @unlink($tmp);

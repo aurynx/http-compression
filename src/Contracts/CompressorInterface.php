@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Aurynx\HttpCompression;
+namespace Aurynx\HttpCompression\Contracts;
+
+use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressionException;
 
 interface CompressorInterface
 {
