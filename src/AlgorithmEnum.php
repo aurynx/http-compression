@@ -24,12 +24,17 @@ enum AlgorithmEnum: string
 
     /**
      * Get the default compression level for this algorithm
+     *
+     * These levels are balanced for dynamic HTTP content:
+     * - gzip: 6 (good compression with acceptable speed)
+     * - brotli: 4 (balanced compression/speed ratio)
+     * - zstd: 3 (fast with good compression)
      */
     public function getDefaultLevel(): int
     {
         return match ($this) {
-            self::Gzip   => 9,
-            self::Brotli => 11,
+            self::Gzip   => 6,
+            self::Brotli => 4,
             self::Zstd   => 3,
         };
     }
