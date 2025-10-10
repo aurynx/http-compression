@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.1.1] - 2025-10-10
+## [v0.1.0] - 2025-10-10
 
 ### Features
 - add AI assistant instructions and examples for HTTP compression
@@ -16,4 +16,4 @@ All notable changes to this project will be documented in this file.
 - readme: enhance project description and usage examples
 - readme: update description to include Zstd compression support
 
-[0.1.1]: https://github.com/aurynx/http-compression/compare/0.1.0...0.1.1
+[v0.1.0]: https://github.com/aurynx/http-compression/releases/tag/v0.1.0
