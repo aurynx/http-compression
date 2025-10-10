@@ -16,4 +16,4 @@ All notable changes to this project will be documented in this file.
 - readme: enhance project description and usage examples
 - readme: update description to include Zstd compression support
 
-[0.1.1]: https://github.com/ayrunx/http-compression/compare/0.1.0...0.1.1
+[0.1.1]: https://github.com/aurynx/http-compression/compare/0.1.0...0.1.1

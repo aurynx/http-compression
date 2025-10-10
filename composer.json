@@ -1,5 +1,5 @@
 {
-    "name": "ayrunx/http-compression",
+    "name": "aurynx/http-compression",
     "description": "Framework-agnostic HTTP compression for PHP (gzip, brotli, zstd) with deterministic builds and safe file precompression.",
     "keywords": [
         "http",
@@ -25,7 +25,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Ayrunx\\HttpCompression\\": "src/"
+            "Aurynx\\HttpCompression\\": "src/"
         }
     },
     "autoload-dev": {

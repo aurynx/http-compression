@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Ayrunx\HttpCompression;
+namespace Aurynx\HttpCompression;
 
-use Ayrunx\HttpCompression\Algorithms\BrotliCompressor;
-use Ayrunx\HttpCompression\Algorithms\GzipCompressor;
-use Ayrunx\HttpCompression\Algorithms\ZstdCompressor;
+use Aurynx\HttpCompression\Algorithms\BrotliCompressor;
+use Aurynx\HttpCompression\Algorithms\GzipCompressor;
+use Aurynx\HttpCompression\Algorithms\ZstdCompressor;
 
 final class CompressorFactory
 {

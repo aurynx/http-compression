@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Ayrunx\HttpCompression\CompressionBuilder;
-use Ayrunx\HttpCompression\CompressionException;
-use Ayrunx\HttpCompression\ErrorCode;
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\CompressionException;
+use Aurynx\HttpCompression\ErrorCode;
 
 it('throws INVALID_LEVEL_TYPE when string key maps to non-integer level', function () {
     $builder = new CompressionBuilder();

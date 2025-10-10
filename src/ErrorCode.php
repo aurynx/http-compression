@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Ayrunx\HttpCompression;
+namespace Aurynx\HttpCompression;
 
 /**
  * Machine-readable error codes for compression exceptions

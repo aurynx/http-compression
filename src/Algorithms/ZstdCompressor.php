@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Ayrunx\HttpCompression\Algorithms;
+namespace Aurynx\HttpCompression\Algorithms;
 
-use Ayrunx\HttpCompression\AlgorithmEnum;
-use Ayrunx\HttpCompression\CompressionException;
-use Ayrunx\HttpCompression\CompressorInterface;
-use Ayrunx\HttpCompression\ErrorCode;
+use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressionException;
+use Aurynx\HttpCompression\CompressorInterface;
+use Aurynx\HttpCompression\ErrorCode;
 
 final class ZstdCompressor implements CompressorInterface
 {

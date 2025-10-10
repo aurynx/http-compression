@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Ayrunx\HttpCompression\CompressionBuilder;
-use Ayrunx\HttpCompression\CompressionException;
-use Ayrunx\HttpCompression\ErrorCode;
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\CompressionException;
+use Aurynx\HttpCompression\ErrorCode;
 
 it('ensures withDefaultAlgorithms([]) throws EMPTY_ALGORITHMS with stable message', function () {
     $builder = new CompressionBuilder();

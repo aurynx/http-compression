@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Ayrunx\HttpCompression;
+namespace Aurynx\HttpCompression;
 
 /**
  * Represents a single item to be compressed

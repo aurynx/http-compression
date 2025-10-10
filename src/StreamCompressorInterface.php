@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Ayrunx\HttpCompression;
+namespace Aurynx\HttpCompression;
 
 /**
  * Optional interface for compressors that support streaming I/O

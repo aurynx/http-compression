@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Ayrunx\HttpCompression\AlgorithmEnum as Algo;
-use Ayrunx\HttpCompression\CompressionBuilder;
-use Ayrunx\HttpCompression\CompressionResult as Result;
-use Ayrunx\HttpCompression\ErrorCode as Err;
+use Aurynx\HttpCompression\AlgorithmEnum as Algo;
+use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\CompressionResult as Result;
+use Aurynx\HttpCompression\ErrorCode as Err;
 
 it('keeps codes for partial errors (brotli unavailable)', function () {
     $builder = new CompressionBuilder();

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use Ayrunx\HttpCompression\AlgorithmEnum;
-use Ayrunx\HttpCompression\Algorithms\BrotliCompressor;
-use Ayrunx\HttpCompression\Algorithms\GzipCompressor;
-use Ayrunx\HttpCompression\Algorithms\ZstdCompressor;
-use Ayrunx\HttpCompression\CompressorFactory;
-use Ayrunx\HttpCompression\CompressorInterface;
+use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\Algorithms\BrotliCompressor;
+use Aurynx\HttpCompression\Algorithms\GzipCompressor;
+use Aurynx\HttpCompression\Algorithms\ZstdCompressor;
+use Aurynx\HttpCompression\CompressorFactory;
+use Aurynx\HttpCompression\CompressorInterface;
 
 test('factory creates gzip compressor', function () {
     $compressor = CompressorFactory::create(AlgorithmEnum::Gzip);

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Ayrunx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\CompressionBuilder;
 
 it('maintains "last" invariant after deleting non-last then last', function () {
     $builder = new CompressionBuilder();

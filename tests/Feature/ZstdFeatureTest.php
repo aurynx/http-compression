@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Ayrunx\HttpCompression\AlgorithmEnum;
-use Ayrunx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressionBuilder;
 
 beforeEach(function () {
     $this->testDir = sys_get_temp_dir() . '/compressor_test_' . uniqid('', true);

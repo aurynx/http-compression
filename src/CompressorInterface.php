@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Ayrunx\HttpCompression;
+namespace Aurynx\HttpCompression;
 
 interface CompressorInterface
 {

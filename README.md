@@ -5,15 +5,16 @@
 </p>
 
 <p align="center">
-  <strong>Framework-agnostic PHP library for efficient HTTP compression</strong><br>
-  Simple, safe, and deterministic compression with gzip, brotli, and zstd
+    <b>Framework-agnostic PHP library for efficient HTTP compression</b>
 </p>
+<p align="center">gzip • brotli • zstd — simple, safe, and fast</p>
+
 
 <p align="center">
-  <a href="https://packagist.org/packages/ayrunx/http-compression"><img src="https://img.shields.io/packagist/v/ayrunx/http-compression.svg?style=flat-square" alt="Latest Version on Packagist"></a>
-  <a href="https://packagist.org/packages/ayrunx/http-compression"><img src="https://img.shields.io/packagist/dt/ayrunx/http-compression.svg?style=flat-square" alt="Total Downloads"></a>
-  <a href="https://packagist.org/packages/ayrunx/http-compression"><img src="https://img.shields.io/packagist/php-v/ayrunx/http-compression.svg?style=flat-square" alt="PHP Version"></a>
-  <a href="https://github.com/ayrunx/http-compression/blob/main/LICENSE"><img src="https://img.shields.io/packagist/l/ayrunx/http-compression.svg?style=flat-square" alt="License"></a>
+  <a href="https://packagist.org/packages/aurynx/http-compression"><img src="https://img.shields.io/packagist/v/aurynx/http-compression.svg?style=flat-square" alt="Latest Version on Packagist"></a>
+  <a href="https://packagist.org/packages/aurynx/http-compression"><img src="https://img.shields.io/packagist/dt/aurynx/http-compression.svg?style=flat-square" alt="Total Downloads"></a>
+  <a href="https://packagist.org/packages/aurynx/http-compression"><img src="https://img.shields.io/packagist/php-v/aurynx/http-compression.svg?style=flat-square" alt="PHP Version"></a>
+  <a href="https://github.com/aurynx/http-compression/blob/main/LICENSE"><img src="https://img.shields.io/packagist/l/aurynx/http-compression.svg?style=flat-square" alt="License"></a>
 </p>
 
 <p align="center">
@@ -49,7 +50,7 @@ Modern web applications need efficient compression to reduce bandwidth and impro
 Install via Composer:
 
 ```bash
-composer require ayrunx/http-compression
+composer require aurynx/http-compression
 ```
 
 ## Quick Start
@@ -59,8 +60,8 @@ composer require ayrunx/http-compression
 Compress a string with gzip:
 
 ```php
-use Ayrunx\HttpCompression\CompressionBuilder;
-use Ayrunx\HttpCompression\AlgorithmEnum;
+use aurynx\HttpCompression\CompressionBuilder;
+use aurynx\HttpCompression\AlgorithmEnum;
 
 $builder = new CompressionBuilder();
 $builder->add('Hello, World!', AlgorithmEnum::Gzip);
@@ -330,8 +331,8 @@ $result->getIdentifier(); // Item identifier
 Generate precompressed files for nginx's `gzip_static` and `brotli_static`:
 
 ```php
-use Ayrunx\HttpCompression\CompressionBuilder;
-use Ayrunx\HttpCompression\AlgorithmEnum;
+use aurynx\HttpCompression\CompressionBuilder;
+use aurynx\HttpCompression\AlgorithmEnum;
 
 $publicDir = __DIR__ . '/public';
 $assets = [
