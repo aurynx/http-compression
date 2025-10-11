@@ -1,11 +1,13 @@
 # AI Guide
 
-> Audience: AI coding assistants (GitHub Copilot, ChatGPT, Claude, etc.)  
+> Audience: AI coding assistants (GitHub Copilot, ChatGPT, Claude, etc.)  \
 > Purpose: a concise, copy-pasteable reference for LLM/agent usage of **aurynx/http-compression**
+
+[Jump to: Quick Cheat Sheet](#quick-cheat-sheet) • [Capabilities & Limits](#capabilities--limits-tldr) • [Common Mistakes](#-common-mistakes) • [Error Model](#-error-model-summary)
 
 ---
 
-## 🎯 Quick Cheat Sheet
+## 🎯 Quick Cheat Sheet {#quick-cheat-sheet}
 
 ### Single File Compression
 
@@ -25,6 +27,8 @@ $result = CompressorFacade::once()
     ->compress();
 ```
 
+> Note: saveTo() requires exactly one algorithm. For multiple algorithms, call ->compress() and pick data per algorithm.
+
 ### Batch Compression
 
 ```php
@@ -40,6 +44,25 @@ $result = CompressorFacade::make()
 
 ---
 
+## ⚙️ Capabilities & Limits (TL;DR) {#capabilities--limits-tldr}
+
+- Algorithms and levels:
+  - Gzip: levels 1–9 (default 6)
+  - Brotli: levels 0–11 (default 11)
+  - Zstd: levels 1–22 (default 3)
+- System requirements: PHP 8.4+, ext-zlib (required), ext-brotli (optional), ext-zstd (optional). No polyfills are bundled.
+- Availability check (offline-friendly):
+  ```php
+  use Aurynx\HttpCompression\Enums\AlgorithmEnum;
+  if (!AlgorithmEnum::Brotli->isAvailable()) { /* fallback to Gzip */ }
+  ```
+- Contracts: once()->data(...) has no side effects; operations are deterministic for the same input/level; empty input is allowed (output may be header-only but not empty). Batch with no inputs returns an empty CompressionResult (no throw).
+- Memory/streaming: In in-memory mode, exceeding maxBytes throws CompressionException (throws). Use ->toDir() or raise the limit.
+- Globs: Brace groups like *.{css,js} are expanded by the library and are portable. Recursive ** is not guaranteed across platforms — prefer several addGlob() calls for explicit patterns.
+- Recommended config style (for agents): ItemConfig::create()->withGzip(...)[->withBrotli(...)]...->build(). Static AlgorithmSet factories exist, but prefer the builder in TL;DR.
+
+---
+
 ## 📋 Use Case → Code Mapping
 
 | User wants to... | Code pattern |
@@ -47,9 +70,10 @@ $result = CompressorFacade::make()
 | Compress one file | `CompressorFacade::once()->file($path)->withGzip()->saveTo($out)` |
 | Compress data in memory | `CompressorFacade::once()->data($str)->withBrotli()->compress()` |
 | Compress multiple files | `CompressorFacade::make()->addFile($p1)->addFile($p2)->...->compress()` |
-| Compress directory | `CompressorFacade::make()->addGlob('dir/**/*.ext')->...->compress()` |
+| Compress directory | `CompressorFacade::make()->addGlob('dir/*.ext')->...->compress()` |
+| Custom source      | `CompressorFacade::make()->addFrom($provider)` → see [Providers](#providers) |
 | Skip images/videos | `->skipAlreadyCompressed()` |
-| Multiple algorithms | `ItemConfig::create()->withGzip(9)->withBrotli(11)->build()` |
+| Multiple algorithms (single run) | `CompressorFacade::once()->data($str)->withGzip(9)->withBrotli(11)->compress(); $result->getData(AlgorithmEnum::Gzip)` |
 | Save to directory | `->toDir('./output', keepStructure: true)` |
 | Keep in memory | `->inMemory(maxBytes: 10_000_000)` |
 | Stop on first error | `->failFast(true)` (default) |
@@ -81,6 +105,12 @@ use Aurynx\HttpCompression\Enums\AlgorithmEnum;
 AlgorithmEnum::Gzip    // 'gzip'
 AlgorithmEnum::Brotli  // 'br'
 AlgorithmEnum::Zstd    // 'zstd'
+
+// Useful methods
+$level = AlgorithmEnum::Gzip->getDefaultLevel(); // int
+$min   = AlgorithmEnum::Gzip->getMinLevel();     // int
+$max   = AlgorithmEnum::Gzip->getMaxLevel();     // int
+$extOk = AlgorithmEnum::Gzip->isAvailable();     // bool
 ```
 
 ### Value Objects
@@ -89,18 +119,33 @@ AlgorithmEnum::Zstd    // 'zstd'
 use Aurynx\HttpCompression\ValueObjects\ItemConfig;
 use Aurynx\HttpCompression\ValueObjects\AlgorithmSet;
 
-// Configuration for compression
+// Configuration for compression (recommended builder style)
 $config = ItemConfig::create()
     ->withGzip(9)
     ->withBrotli(11)
     ->build();
 
-// Algorithm set (immutable)
+// Algorithm set (immutable) — alternative, when constructing ItemConfig directly
 $algos = AlgorithmSet::gzip(9);
 $algos = AlgorithmSet::fromDefaults();  // All algorithms with defaults
 ```
 
+### Providers {#providers}
+
+```php
+use Aurynx\HttpCompression\Contracts\InputProviderInterface;
+use Aurynx\HttpCompression\ValueObjects\CompressionInput;
+
+interface InputProviderInterface
+{
+    /** @return CompressionInput[] */
+    public function provide(): array;
+}
+```
+
 ### Results
+
+> Types: make()->compress() returns CompressionResult (batch container). once()->compress() returns CompressionItemResult (single item). Batch exposes count()/allOk()/first()/summary(); single-item exposes isOk()/getData()/getStream()/getError().
 
 ```php
 // Batch result
@@ -109,6 +154,9 @@ $result->count(): int
 $result->allOk(): bool
 $result->first(): CompressionItemResult
 $result->summary(): CompressionSummaryResult
+$result->successes(): array<string, CompressionItemResult>
+$result->failures(): array<string, CompressionItemResult>
+// Traversable: foreach ($result as $id => $item) { /* CompressionItemResult */ }
 
 // Single item result
 $item = $result->first();
@@ -173,7 +221,7 @@ CompressorFacade::make()
 
 ```php
 // WRONG - gzip levels are 1-9
-AlgorithmSet::gzip(15);  // ← Throws InvalidArgumentException
+AlgorithmSet::gzip(15);  // ← Throws CompressionException
 ```
 
 ✅ Valid ranges:
@@ -238,7 +286,12 @@ use Aurynx\HttpCompression\CompressorFacade;
 use Aurynx\HttpCompression\ValueObjects\ItemConfig;
 
 $result = CompressorFacade::make()
-    ->addGlob('dist/**/*.{html,css,js,svg,json}')
+    ->addGlob('dist/*.html')
+    ->addGlob('dist/*.css')
+    ->addGlob('dist/*.js')
+    ->addGlob('dist/*.svg')
+    ->addGlob('dist/*.json')
+    // Repeat addGlob() for subdirectories explicitly if needed
     ->withDefaultConfig(
         ItemConfig::create()
             ->withGzip(9)
@@ -271,6 +324,18 @@ use Aurynx\HttpCompression\Enums\AlgorithmEnum;
 
 function compressResponse(string $content, string $acceptEncoding): string
 {
+    // Avoid double compression for already-encoded payloads
+    if (headers_sent()) {
+        return $content;
+    }
+    $headers = headers_list();
+    if (array_any(
+        $headers,
+        static fn (string $header): bool => stripos($header, 'Content-Encoding:') === 0
+    )) {
+        return $content;
+    }
+
     // Determine best algorithm
     if (str_contains($acceptEncoding, 'br')) {
         $algo = AlgorithmEnum::Brotli;
@@ -281,7 +346,9 @@ function compressResponse(string $content, string $acceptEncoding): string
     } else {
         return $content;  // No compression
     }
+    header('Vary: Accept-Encoding');
     
+    // withAlgorithm() takes an AlgorithmEnum and an int level
     $result = CompressorFacade::once()
         ->data($content)
         ->withAlgorithm($algo, $algo->getDefaultLevel())
@@ -344,10 +411,10 @@ $compressor = CompressorFacade::make()
     ->toDir('./dist', keepStructure: true)
     ->failFast(false);
 
-// Add files via glob patterns (portable; no GLOB_BRACE)
+// Add files via glob patterns (portable; avoid relying on system-specific ** recursion)
 $compressor
-    ->addGlob('assets/**/*.css')
-    ->addGlob('assets/**/*.js');
+    ->addGlob('assets/*.css')
+    ->addGlob('assets/*.js');
 
 $result = $compressor->compress();
 
@@ -369,6 +436,7 @@ echo "Total time: " . round($summary->getTotalTimeMs(AlgorithmEnum::Gzip)) . " m
 
 ```php
 use Aurynx\HttpCompression\CompressorFacade;
+use Aurynx\HttpCompression\Enums\AlgorithmEnum;
 use PHPUnit\Framework\TestCase;
 
 final class CompressionTest extends TestCase
@@ -383,7 +451,11 @@ final class CompressionTest extends TestCase
             ->compress();
         
         $this->assertTrue($result->isOk());
-        $this->assertLessThan(strlen($html), $result->compressedSizes['gzip']);
+        $data = $result->getData(AlgorithmEnum::Gzip);
+        $this->assertIsString($data);
+        $this->assertGreaterThan(0, strlen($data));
+        // GZIP magic header 1F 8B
+        $this->assertTrue(str_starts_with($data, "\x1f\x8b"));
     }
 }
 ```
@@ -452,12 +524,18 @@ ItemConfig::create()->withBrotli(11)->build();    // Maximum
 ItemConfig::create()->withZstd(19)->build();      // Maximum (slow!)
 ```
 
+Warning: Brotli 11 and Zstd 19+ on large JSON payloads can take seconds on typical servers.
+
+Note: For very small inputs, gzip/brotli can be ≥ original size due to container headers. This is expected.
+
 ### 2. Skip pre-compressed formats
 
 ```php
-// Always use for static sites
+// Always use for static sites (portable patterns)
 CompressorFacade::make()
-    ->addGlob('public/**/*')
+    ->addGlob('public/*.html')
+    ->addGlob('public/*.css')
+    ->addGlob('public/*.js')
     ->skipAlreadyCompressed()  // Skips images, videos, fonts, archives
     ->compress();
 ```
@@ -476,6 +554,11 @@ $result = CompressorFacade::make()
 $result->first()->read(AlgorithmEnum::Gzip, function (string $chunk) {
     file_put_contents('output.gz', $chunk, FILE_APPEND);
 });
+
+// Contract:
+// - Callback signature: fn(string $chunk): void; chunks are ~64KB by default (implementation-defined).
+// - Exceptions thrown inside the callback stop streaming and are bubbled up.
+// - Exceeding the in-memory limit throws CompressionException unless you raise the limit or use ->toDir().
 ```
 
 ---
@@ -488,7 +571,7 @@ $result = CompressorFacade::make()->compress();
 // Per-item metrics
 foreach ($result as $item) {
     echo "Original: {$item->originalSize} bytes\n";
-    echo "Gzip: {$item->compressedSizes['gzip']} bytes\n";
+    echo "Gzip: {$item->compressedSizes['gzip']} bytes\n"; // Keys match AlgorithmEnum string values
     echo "Time: {$item->compressionTimes['gzip']} ms\n";
 }
 
@@ -501,11 +584,27 @@ echo "Success rate: " . ($summary->getSuccessCount() / $summary->getTotalItems()
 
 ---
 
+## 🧭 Error Model (summary)
+
+| Exception | When | Code | Agent action |
+|---|---|---:|---|
+| CompressionException | Unsupported output mode for input type | 1016 | Switch to a supported mode (e.g., InMemory for DataInput) |
+| CompressionException | Input size exceeds configured maxBytes | 1006 | Increase limit or skip the item |
+| CompressionException | Algorithm extension not available | 1002 | Install/enable the PHP extension (ext-brotli/ext-zstd) or switch algorithm |
+| CompressionException | saveTo() used with multiple algorithms | — | Use compress() instead, then pick per-algorithm data |
+| CompressionException | Compression/decompression failed | 1007/1008 | Validate input, try a different level/algorithm |
+| CompressionException | Level outside allowed range | 1003 (if set) | Use a valid level (see ranges above) |
+| —                    | Batch has zero inputs        | —             | Result is empty; handle as a no-op    |
+
+> See also ErrorCodeEnum in the codebase for all machine-readable codes.
+
+---
+
 ## 🔗 Quick Links
 
-- Full API Reference: See README.md § API Reference
-- Use Cases: See README.md § Use Cases
-- GitHub Issues: https://github.com/aurynx/http-compression/issues
+- [API Reference](../README.md#api-reference)
+- [Use Cases](../README.md#use-cases)
+- [GitHub Issues](https://github.com/aurynx/http-compression/issues)
 
 ---
 
@@ -536,7 +635,7 @@ User wants to compress...
 
 ---
 
-<p align="center">
-<b>Remember:</b> This library uses native PHP 8.4 types.  
+<p style="text-align:center">
+<b>Remember:</b> This library uses native PHP 8.4 types.  \
 No docblock parsing needed—trust the type signatures! 🎯
 </p>
