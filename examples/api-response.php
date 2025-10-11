@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
-use Aurynx\HttpCompression\CompressionBuilder;
-use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressorFacade;
+use Aurynx\HttpCompression\Enums\AlgorithmEnum;
+
+require __DIR__ . '/../vendor/autoload.php';
 
 /**
  * Example: Compress JSON API response according to client's Accept-Encoding.
@@ -13,48 +15,14 @@ use Aurynx\HttpCompression\AlgorithmEnum;
  */
 
 $json = json_encode(['status' => 'ok', 'timestamp' => time()]);
-$acceptEncoding = $_SERVER['HTTP_ACCEPT_ENCODING'] ?? '';
+$accept = $_SERVER['HTTP_ACCEPT_ENCODING'] ?? '';
 
-$algorithms = [];
+// Build config based on Accept-Encoding
+$algo = str_contains($accept, 'br') ? AlgorithmEnum::Brotli : AlgorithmEnum::Gzip;
 
-// Detect accepted encodings
-if (str_contains($acceptEncoding, 'br')) {
-    $algorithms[AlgorithmEnum::Brotli->value] = 11;
-}
-if (str_contains($acceptEncoding, 'zstd')) {
-    $algorithms[AlgorithmEnum::Zstd->value] = 3;
-}
-if (str_contains($acceptEncoding, 'gzip')) {
-    $algorithms[AlgorithmEnum::Gzip->value] = 6;
-}
+$result = CompressorFacade::once()
+    ->data($json)
+    ->withAlgorithm($algo, $algo->getDefaultLevel())
+    ->compress();
 
-// Fallback to gzip if no supported encodings
-if (!$algorithms) {
-    $algorithms[AlgorithmEnum::Gzip->value] = 6;
-}
-
-$builder = new CompressionBuilder()->graceful();
-$builder->add($json, $algorithms);
-
-$results = $builder->compress();
-$result = $results[0] ?? null;
-
-if (!$result || !$result->isOk()) {
-    header('Content-Encoding: identity');
-    header('Content-Type: application/json');
-    echo $json;
-    exit;
-}
-
-// Prefer best encoding
-foreach ([AlgorithmEnum::Brotli, AlgorithmEnum::Zstd, AlgorithmEnum::Gzip] as $algo) {
-    if ($compressed = $result->getCompressedFor($algo)) {
-        header('Content-Encoding: ' . $algo->value);
-        header('Content-Type: application/json');
-        echo $compressed;
-        exit;
-    }
-}
-
-header('Content-Encoding: identity');
-echo $json;
+echo $result->getData($algo);

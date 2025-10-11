@@ -1,0 +1,36 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#getData\(\) should return string but returns resourcestring#'
+			identifier: return.type
+			count: 1
+			paths:
+				- src/Results/CompressionItemResult.php
+
+		-
+			message: '#^Trait Aurynx\\HttpCompression\\Traits\\EnumArraySerializableTrait is used zero times and is not analysed\.$#'
+			identifier: trait.unused
+			count: 1
+			paths:
+				- src/Traits/EnumArraySerializableTrait.php
+
+		-
+			message: '#^Trait Aurynx\\HttpCompression\\Traits\\EnumJsonSerializableTrait is used zero times and is not analysed\.$#'
+			identifier: trait.unused
+			count: 1
+			paths:
+				- src/Traits/EnumJsonSerializableTrait.php
+
+		-
+			message: '#^Trait Aurynx\\HttpCompression\\Traits\\EnumNamesTrait is used zero times and is not analysed\.$#'
+			identifier: trait.unused
+			count: 1
+			paths:
+				- src/Traits/EnumNamesTrait.php
+
+		-
+			message: '#^Trait Aurynx\\HttpCompression\\Traits\\EnumValuesTrait is used zero times and is not analysed\.$#'
+			identifier: trait.unused
+			count: 1
+			paths:
+				- src/Traits/EnumValuesTrait.php

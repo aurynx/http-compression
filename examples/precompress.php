@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
-use Aurynx\HttpCompression\CompressionBuilder;
-use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressorFacade;
+use Aurynx\HttpCompression\ValueObjects\ItemConfig;
+use Aurynx\HttpCompression\Enums\AlgorithmEnum;
+
+require __DIR__ . '/../vendor/autoload.php';
 
 /**
  * Example: Precompress static assets for Nginx and Apache.
@@ -12,52 +15,42 @@ use Aurynx\HttpCompression\AlgorithmEnum;
  * Generates .gz, .br, and .zst files for precompressed serving.
  */
 
-$publicDir = __DIR__ . '/../public';
+$config = ItemConfig::create()
+    ->withGzip(9)
+    ->withBrotli(11)
+    ->withZstd(19)
+    ->build();
 
-$dirs = ['css', 'js', 'html'];
-$exts = ['css', 'js', 'html'];
+$result = CompressorFacade::make()
+    // Add your asset patterns here (portable: no GLOB_BRACE)
+    ->addGlob(__DIR__ . '/public/**/*.js')
+    ->addGlob(__DIR__ . '/public/**/*.css')
+    ->addGlob(__DIR__ . '/public/**/*.html')
+    // Default config for all matched files
+    ->withDefaultConfig($config)
+    // Save alongside originals; keep a directory structure
+    ->toDir(__DIR__ . '/public', keepStructure: true)
+    // Skip already compressed formats (images, archives, etc.)
+    ->skipAlreadyCompressed()
+    // Fail fast on errors in CI
+    ->failFast(true)
+    // Execute
+    ->compress();
 
-$assets = array_merge(
-    ...array_map(
-        static fn ($dir) => array_merge(
-            ...array_map(
-                static fn ($ext) => glob("{$publicDir}/{$dir}/*.{$ext}") ?: [],
-                $exts
-            )
-        ),
-        $dirs
-    )
-);
-
-$builder = new CompressionBuilder()
-    ->failFast()
-    ->addManyFiles($assets, [
-        AlgorithmEnum::Gzip->value => 9,
-        AlgorithmEnum::Brotli->value => 11,
-        AlgorithmEnum::Zstd->value => 19,
-    ]);
-
-$results = $builder->compress();
-
-foreach ($results as $result) {
-    if (!$result->isOk()) {
-        echo "Skipping {$result->getIdentifier()} (compression failed)\n";
-        continue;
+if (!$result->allOk()) {
+    fwrite(STDERR, "Precompression failed\n");
+    foreach ($result->failures() as $id => $item) {
+        fwrite(STDERR, "  - {$id}: " . ($item->getFailureReason()?->getMessage() ?? 'unknown') . "\n");
     }
-
-    $path = $result->getIdentifier();
-
-    foreach ([AlgorithmEnum::Gzip, AlgorithmEnum::Brotli, AlgorithmEnum::Zstd] as $algo) {
-        $data = $result->getCompressedFor($algo);
-        if ($data) {
-            $ext = match ($algo) {
-                AlgorithmEnum::Gzip => '.gz',
-                AlgorithmEnum::Brotli => '.br',
-                AlgorithmEnum::Zstd => '.zst',
-            };
-            file_put_contents($path . $ext, $data);
-        }
-    }
+    exit(1);
 }
 
-echo "Precompression complete (" . count($results) . " files processed)\n";
+// Report summary
+$summary = $result->summary();
+$success = $summary->getSuccessCount();
+$total = $summary->getTotalItems();
+
+echo "✓ Precompression complete\n";
+echo "  Processed: {$total}\n";
+echo "  Success: {$success}, Failed: {$summary->getFailureCount()}\n";
+echo "  Median gzip ratio: " . round($summary->getMedianRatio(AlgorithmEnum::Gzip) * 100, 1) . "%\n";

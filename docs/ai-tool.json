@@ -9,30 +9,49 @@
   "entrypoints": [
     {
       "namespace": "Aurynx\\HttpCompression",
-      "class": "CompressionBuilder",
-      "summary": "Fluent builder that collects items and compresses them with gzip, brotli, zstd.",
+      "class": "CompressorFacade",
+      "summary": "Batch facade to collect inputs and compress with gzip, brotli, zstd.",
       "methods": [
-        { "name": "__construct", "params": ["?int $maxBytes = null"], "returns": "void", "note": "Optional global size limit for all items" },
-        { "name": "add", "params": ["string $content", "AlgorithmEnum|iterable|null $algorithms = null", "?string $customIdentifier = null"], "returns": "self" },
-        { "name": "addFile", "params": ["string $filePath", "AlgorithmEnum|iterable|null $algorithms = null", "?string $customIdentifier = null"], "returns": "self" },
-        { "name": "addMany", "params": ["iterable $payloads", "AlgorithmEnum|iterable|null $defaultAlgorithms = null"], "returns": "self" },
-        { "name": "getLastIdentifier", "params": [], "returns": "?string", "note": "Get identifier of last added item" },
-        { "name": "addManyFiles", "params": ["iterable $payloads", "AlgorithmEnum|iterable|null $defaultAlgorithms = null"], "returns": "self" },
-        { "name": "withDefaultAlgorithms", "params": ["AlgorithmEnum|iterable|null $algorithms"], "returns": "self" },
-        { "name": "forItem", "params": ["string $identifier"], "returns": "ItemConfigurator" },
-        { "name": "forLast", "params": [], "returns": "ItemConfigurator" },
-        { "name": "failFast", "params": [], "returns": "self", "default": true },
-        { "name": "graceful", "params": [], "returns": "self" },
-        { "name": "compress", "params": [], "returns": "array<string, CompressionResultDto>" }
+        { "name": "make", "static": true, "params": [], "returns": "self" },
+        { "name": "once", "static": true, "params": [], "returns": "SingleItemFacade" },
+        { "name": "add", "params": ["CompressionInput $input", "?ItemConfig $config = null"], "returns": "self" },
+        { "name": "addMany", "params": ["iterable $inputs"], "returns": "self" },
+        { "name": "addFile", "params": ["string $path", "?ItemConfig $config = null", "?string $id = null"], "returns": "self" },
+        { "name": "addData", "params": ["string $data", "?ItemConfig $config = null", "?string $id = null"], "returns": "self" },
+        { "name": "addGlob", "params": ["string $pattern", "?ItemConfig $config = null"], "returns": "self" },
+        { "name": "addFrom", "params": ["InputProviderInterface $provider", "?ItemConfig $config = null"], "returns": "self" },
+        { "name": "item", "params": ["callable $callback"], "returns": "self" },
+        { "name": "withDefaultConfig", "params": ["ItemConfig $config"], "returns": "self" },
+        { "name": "toDir", "params": ["string $dir", "bool $keepStructure = false"], "returns": "self" },
+        { "name": "inMemory", "params": ["int $maxBytes = 5000000"], "returns": "self" },
+        { "name": "failFast", "params": ["bool $enable = true"], "returns": "self" },
+        { "name": "skipExtensions", "params": ["array $extensions"], "returns": "self" },
+        { "name": "skipAlreadyCompressed", "params": [], "returns": "self" },
+        { "name": "compress", "params": [], "returns": "CompressionResult" }
+      ]
+    },
+    {
+      "namespace": "Aurynx\\HttpCompression",
+      "class": "SingleItemFacade",
+      "summary": "Simple facade for single file/data compression.",
+      "methods": [
+        { "name": "file", "params": ["string $path"], "returns": "self" },
+        { "name": "data", "params": ["string $data"], "returns": "self" },
+        { "name": "withGzip", "params": ["int $level = 6"], "returns": "self" },
+        { "name": "withBrotli", "params": ["int $level = 11"], "returns": "self" },
+        { "name": "withZstd", "params": ["int $level = 3"], "returns": "self" },
+        { "name": "withAlgorithm", "params": ["AlgorithmEnum $algo", "int $level"], "returns": "self" },
+        { "name": "compress", "params": [], "returns": "CompressionItemResult" },
+        { "name": "saveTo", "params": ["string $path"], "returns": "void", "note": "Requires exactly one algorithm" }
       ]
     }
   ],
   "enums": [
-    { "name": "AlgorithmEnum", "values": ["gzip", "br", "zstd"] }
+    { "name": "AlgorithmEnum", "values": ["gzip", "brotli", "zstd"] }
   ],
   "defaults": {
-    "levels": { "gzip": 6, "br": 4, "zstd": 3 },
-    "prefer_order": ["br", "zstd", "gzip"]
+    "levels": { "gzip": 6, "brotli": 4, "zstd": 3 },
+    "prefer_order": ["brotli", "zstd", "gzip"]
   },
   "constraints": {
     "php": {
@@ -42,10 +61,10 @@
     "psr": ["PSR-12"],
     "extensions": {
       "gzip": "ext-zlib (required)",
-      "br": "ext-brotli (optional)",
+      "brotli": "ext-brotli (optional)",
       "zstd": "ext-zstd (optional)"
     },
-    "memory": "Use maxBytes to guard large payloads"
+    "memory": "Use inMemory(maxBytes) or ItemConfig::create()->limitBytes() to guard large payloads"
   },
   "artifacts": {
     "examples": [
@@ -57,57 +76,55 @@
       "examples/nginx.conf",
       "examples/apache.conf"
     ],
-    "static_extensions": { "gzip": ".gz", "br": ".br", "zstd": ".zst" }
+    "static_extensions": { "gzip": ".gz", "brotli": ".br", "zstd": ".zst" }
   },
   "recipes": [
     {
       "name": "Compress API JSON by Accept-Encoding",
       "steps": [
         "Parse Accept-Encoding",
-        "Pick supported algos",
-        "Add payload",
-        "Compress",
-        "Choose best available by prefer_order",
-        "Return {content, encoding}"
+        "Pick best supported algorithm (brotli > zstd > gzip)",
+        "Use CompressorFacade::once()->data()->with{Algo}(...)",
+        "Compress and return {content, encoding}"
       ],
       "notes": [
-        "Use graceful() for user-facing responses",
-        "Fallback to identity if no algorithm succeeds"
+        "Set Vary: Accept-Encoding",
+        "Fallback to identity if none supported"
       ]
     },
     {
       "name": "Precompress static files for nginx/apache",
       "steps": [
-        "Collect asset paths",
-        "addManyFiles with {gzip:9, br:11, zstd:19}",
-        "compress",
-        "write .gz/.br/.zst next to originals",
-        "Enable gzip_static/brotli_static (nginx) or AddEncoding+Rewrite rules (Apache)"
+        "Use CompressorFacade::make()",
+        "addGlob with patterns (brace expansion supported)",
+        "withDefaultConfig(ItemConfig::create()->withGzip(9)->withBrotli(11)->build())",
+        "skipAlreadyCompressed()",
+        "toDir(keepStructure: true)",
+        "compress"
       ],
-      "paths": ["public/css/*.css", "public/js/*.js", "public/*.html"]
+      "paths": ["public/**/*.html", "public/**/*.css", "public/**/*.js"]
     },
     {
       "name": "Batch with graceful mode",
       "steps": [
-        "graceful()",
-        "addMany",
+        "failFast(false)",
+        "addFile/addGlob",
         "compress",
-        "use getCompressed(); log getAlgorithmErrors()"
+        "iterate CompressionResult and check isOk()/getFailureReason()"
       ]
     }
   ],
   "non_goals": [
-    "Does not set HTTP headers automatically",
-    "Does not stream; operates on full strings/files"
+    "Does not set HTTP headers automatically"
   ],
   "safety": [
-    "Use graceful() for user-facing paths",
-    "Use maxBytes to limit memory",
-    "Check AlgorithmEnum::isAvailable() for optional algorithms in CI"
+    "Use failFast(false) for user-facing paths to collect errors",
+    "Use limitBytes()/inMemory() limits for large payloads",
+    "Optional algorithms require PHP extensions"
   ],
   "hints_for_agents": [
-    "Prefer algorithms in order br > zstd > gzip",
-    "For dynamic responses, set Content-Encoding to the chosen algorithm; otherwise use identity",
-    "For build-time precompression, use failFast() and higher levels (gzip:9, br:11, zstd:19)"
+    "Prefer algorithms in order brotli > zstd > gzip",
+    "For dynamic responses, set Content-Encoding and Vary: Accept-Encoding",
+    "For build-time precompression, use highest levels (gzip:9, brotli:11, zstd:19)"
   ]
 }

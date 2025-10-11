@@ -259,7 +259,7 @@ Closes #123
 composer test
 
 # Run specific test file
-./vendor/bin/pest tests/Unit/AlgorithmAvailabilityTest.php
+./vendor/bin/pest tests/Unit/AlgorithmMetadataTest.php
 
 # Run with coverage (requires Xdebug)
 ./vendor/bin/pest --coverage
@@ -273,18 +273,17 @@ composer test
 We use **Pest PHP** for testing:
 
 ```php
-use Aurynx\HttpCompression\AlgorithmEnum;
-use Aurynx\HttpCompression\CompressionBuilder;
+use Aurynx\HttpCompression\CompressorFacade;
+use Aurynx\HttpCompression\Enums\AlgorithmEnum;
 
-test('compress with gzip returns compressed data', function () {
-    $builder = new CompressionBuilder();
-    $builder->add('Hello, World!', AlgorithmEnum::Gzip);
-    
-    $results = $builder->compress();
-    $result = array_values($results)[0];
+it('compresses with gzip returns compressed data', function () {
+    $result = CompressorFacade::make()
+        ->data('Hello, World!')
+        ->withGzip(6)
+        ->compress();
     
     expect($result->isOk())->toBeTrue();
-    expect($result->getCompressedFor(AlgorithmEnum::Gzip))->not->toBeNull();
+    expect($result->getData(AlgorithmEnum::Gzip))->not->toBeEmpty();
 });
 ```
 
@@ -309,7 +308,7 @@ Example:
 
 ```php
 /**
- * Compress content with specified algorithm
+ * Compress content with a specified algorithm
  *
  * @param string $content Content to compress
  * @param AlgorithmEnum $algorithm Compression algorithm to use

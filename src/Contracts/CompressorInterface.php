@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Aurynx\HttpCompression\Contracts;
 
-use Aurynx\HttpCompression\AlgorithmEnum;
 use Aurynx\HttpCompression\CompressionException;
+use Aurynx\HttpCompression\Enums\AlgorithmEnum;
 
 interface CompressorInterface
 {
