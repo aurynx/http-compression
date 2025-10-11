@@ -18,15 +18,21 @@
     "type": "library",
     "license": "MIT",
     "homepage": "https://github.com/aurynx/http-compression",
+    "readme": "README.md",
     "support": {
+        "email": "anton.a.semenov@proton.me",
         "issues": "https://github.com/aurynx/http-compression/issues",
-        "source": "https://github.com/aurynx/http-compression"
+        "source": "https://github.com/aurynx/http-compression",
+        "docs": "https://github.com/aurynx/http-compression/tree/main/docs",
+        "security": "https://github.com/aurynx/http-compression/security/policy"
     },
     "scripts": {
         "stan": "phpstan analyse -c phpstan.neon.dist --memory-limit=1G",
         "stan:ci": "phpstan analyse -c phpstan.neon.dist --memory-limit=1G --no-progress",
         "cs:check": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff --ansi",
-        "cs:fix": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --ansi"
+        "cs:fix": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --ansi",
+        "test": "vendor/bin/pest -q",
+        "phpstan": "@stan"
     },
     "autoload": {
         "psr-4": {
@@ -41,7 +47,8 @@
     "authors": [
         {
             "name": "Anton Semenov",
-            "email": "anton.a.semenov@proton.me"
+            "email": "anton.a.semenov@proton.me",
+            "role": "Author and maintainer"
         }
     ],
     "minimum-stability": "stable",

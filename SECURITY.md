@@ -11,13 +11,11 @@ This security policy applies to the **aurynx/http-compression** package and its 
 
 ## Supported Versions
 
-This project is currently in **pre-release** development (0.x versions). Security updates are provided for the latest 0.x release only.
+This project focuses on PHP 8.4+ and is actively developed. Security updates are provided for the latest release.
 
 | Version | Supported |
 |:-------:|:---------:|
-| 0.x.x   | ✅        |
-
-Once the project reaches 1.0.0, this policy will be updated to reflect long-term support for stable versions.
+| latest  | ✅        |
 
 ## Reporting a Vulnerability
 
@@ -47,7 +45,7 @@ You can report vulnerabilities through:
 - **Fix Timeline:** Depends on severity:
   - **Critical:** Patch within 14 days
   - **High:** Patch within 30 days
-  - **Medium/Low:** Patch in next regular release
+  - **Medium/Low:** Patch in the next regular release
 
 ### Disclosure Policy
 
@@ -59,28 +57,62 @@ You can report vulnerabilities through:
 
 When using this library:
 
-1. **Validate Input:** Always validate content before compression
-2. **Limit Payload Size:** Use `maxBytes` parameter to prevent memory exhaustion:
+1. **Validate Input:** Always validate content before compression.
+2. **Limit Payload Size:** Guard memory with either per-item or global limits:
    ```php
-   $builder = new CompressionBuilder(maxBytes: 10_485_760); // 10MB limit
+   use Aurynx\HttpCompression\CompressorFacade;
+   use Aurynx\HttpCompression\ValueObjects\ItemConfig;
+
+   // Per-item limit via ItemConfig
+   $config = ItemConfig::create()
+       ->withGzip(6)
+       ->limitBytes(10_485_760) // 10MB
+       ->build();
+
+   $result = CompressorFacade::make()
+       ->addFile('large.json', $config)
+       ->inMemory(maxBytes: 10_485_760) // global per-item guard
+       ->compress();
    ```
-3. **Check Algorithm Availability:** Verify extensions are loaded before compression:
+3. **Check Algorithm Availability:** Verify extensions are loaded before using optional algorithms:
    ```php
+   use Aurynx\HttpCompression\Enums\AlgorithmEnum;
+
    if (AlgorithmEnum::Brotli->isAvailable()) {
-       // Safe to use brotli
+       // Safe to use Brotli
    }
    ```
-4. **Handle Errors:** Always check compression results in production:
+4. **Handle Errors:** Always check results in production:
    ```php
-   if ($result->isError()) {
-       // Log error and fallback to uncompressed
+   if (!$result->allOk()) {
+       foreach ($result->failures() as $id => $item) {
+           error_log($item->getFailureReason()?->getMessage() ?? 'compression failed');
+       }
    }
    ```
+
+## Recommended Configuration
+
+```php
+use Aurynx\HttpCompression\CompressorFacade;
+use Aurynx\HttpCompression\ValueObjects\ItemConfig;
+
+$result = CompressorFacade::make()
+    ->addGlob('public/**/*.{html,css,js,svg,json}')
+    ->withDefaultConfig(
+        ItemConfig::create()
+            ->withGzip(9)
+            ->withBrotli(11)
+            ->build()
+    )
+    ->toDir('./dist', keepStructure: true)
+    ->compress();
+```
 
 ## Known Security Considerations
 
 ### Compression Bombs
-This library includes built-in protection against decompression bombs through the `maxBytes` parameter. Always set appropriate limits for your use case.
+The library supports maximum input size limits via `ItemConfig::limitBytes()` and `CompressorFacade::inMemory(maxBytes)`. Always set appropriate limits for your use case.
 
 ### Algorithm Availability
 The library gracefully handles missing PHP extensions. However, always verify algorithm availability in your deployment environment to avoid unexpected failures.

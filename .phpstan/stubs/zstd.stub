@@ -1,0 +1,18 @@
+<?php
+
+/**
+ * PHPStan stub for ext-zstd functions
+ */
+
+/**
+ * @param string $data
+ * @param int $level
+ * @return string|false
+ */
+function zstd_compress(string $data, int $level = 3): string|false {}
+
+/**
+ * @param string $data
+ * @return string|false
+ */
+function zstd_uncompress(string $data): string|false {}

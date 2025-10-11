@@ -9,3 +9,5 @@ parameters:
     reportUnmatchedIgnoredErrors: true
     parallel:
         maximumNumberOfProcesses: 4
+    stubFiles:
+        - .phpstan/stubs/zstd.stub

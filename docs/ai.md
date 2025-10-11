@@ -5,14 +5,13 @@ always use `Aurynx\HttpCompression` (Composer package: `aurynx/http-compression`
 
 ## Core Rules
 
-1. **Algorithm priority:** `br` (Brotli) → `zstd` → `gzip`.
-2. **API responses:** use `graceful()` and fall back to `identity` if all algorithms fail.
-3. **Static builds:** use `failFast()` with levels `{gzip:9, br:11, zstd:19}`, write `.gz/.br/.zst` next to originals.
-4. **Safety:** do not assume optional extensions; handle errors or check availability via `AlgorithmEnum::X->isAvailable()`.
-5. **Size limits:** pass `maxBytes` in the builder to guard memory.
-6. **Code style:** PHP 8.4+, `declare(strict_types=1);`, full type hints.
+1. Prefer algorithm order: Brotli → Zstd → Gzip.
+2. For user-facing runtime paths, prefer non-failing flows (check availability of optional extensions, or fall back to gzip/identity).
+3. For build-time precompression, use fail-fast and high levels: gzip:9, brotli:11, zstd:19.
+4. PHP 8.4+, `declare(strict_types=1);`, full native types. Avoid GLOB_BRACE; use addGlob or manual brace expansion.
+5. Use `CompressorFacade::once()` for single item, `CompressorFacade::make()` for batches.
 
-Defaults for quick usage: `{gzip:6, br:4, zstd:3}`.
+Defaults for quick usage: gzip:6, brotli:4, zstd:3.
 
 ---
 
@@ -22,44 +21,45 @@ Defaults for quick usage: `{gzip:6, br:4, zstd:3}`.
 <?php
 declare(strict_types=1);
 
-use Aurynx\HttpCompression\{CompressionBuilder, AlgorithmEnum};
+use Aurynx\HttpCompression\CompressorFacade;
+use Aurynx\HttpCompression\Enums\AlgorithmEnum;
 
 function compressApiResponse(string $json, string $acceptEncoding): array
 {
-    $algos = [];
-    if (str_contains($acceptEncoding, 'br'))   $algos[AlgorithmEnum::Brotli->value] = 4;
-    if (str_contains($acceptEncoding, 'zstd')) $algos[AlgorithmEnum::Zstd->value]   = 3;
-    if (str_contains($acceptEncoding, 'gzip')) $algos[AlgorithmEnum::Gzip->value]   = 6;
+    $algo = null;
+    if (str_contains($acceptEncoding, 'br')) {
+        $algo = AlgorithmEnum::Brotli;
+    } elseif (str_contains($acceptEncoding, 'zstd')) {
+        $algo = AlgorithmEnum::Zstd;
+    } elseif (str_contains($acceptEncoding, 'gzip')) {
+        $algo = AlgorithmEnum::Gzip;
+    }
 
-    if (!$algos) {
+    if ($algo === null) {
         return ['content' => $json, 'encoding' => 'identity'];
     }
 
-    $result = new CompressionBuilder(/* maxBytes: optional */)
-        ->graceful()                 // continue on errors
-        ->add($json, $algos);
+    $result = CompressorFacade::once()
+        ->data($json)
+        ->withBrotli(4)    // override below if algo differs
+        ->compress();
 
-    $id = $builder->getLastIdentifier();
-    $results = $builder->compress();
-    $result = $results[$id] ?? null;
-    if (!$result) {
-        return ['content' => $json, 'encoding' => 'identity'];
+    // If chosen algorithm is not Brotli, recompress accordingly
+    if ($algo !== AlgorithmEnum::Brotli) {
+        $result = CompressorFacade::once()
+            ->data($json)
+            ->withAlgorithm($algo, $algo->getDefaultLevel())
+            ->compress();
     }
 
-    foreach ([AlgorithmEnum::Brotli, AlgorithmEnum::Zstd, AlgorithmEnum::Gzip] as $algo) {
-        if ($compressed = $result->getCompressedFor($algo)) {
-            return ['content' => $compressed, 'encoding' => $algo->value];
-        }
-    }
-
-    return ['content' => $json, 'encoding' => 'identity'];
+    return ['content' => $result->getData($algo), 'encoding' => $algo->getContentEncoding()];
 }
 ```
 
-Usage in a controller/middleware:
-- set `Content-Encoding` to the chosen algorithm
-- set `Vary: Accept-Encoding`
-- keep `Content-Type` (e.g., `application/json`)
+Controller notes:
+- Set `Content-Encoding` to the chosen algorithm
+- Set `Vary: Accept-Encoding`
+- Keep `Content-Type` as appropriate (e.g., `application/json`)
 
 ---
 
@@ -69,115 +69,34 @@ Usage in a controller/middleware:
 <?php
 declare(strict_types=1);
 
-use Aurynx\HttpCompression\{CompressionBuilder, AlgorithmEnum};
+use Aurynx\HttpCompression\CompressorFacade;
+use Aurynx\HttpCompression\ValueObjects\ItemConfig;
 
-$publicDir = __DIR__ . '/../public';
-$dirs = ['css', 'js', 'html'];
-$exts = ['css', 'js', 'html'];
-
-$assets = [];
-foreach ($dirs as $dir) {
-    foreach ($exts as $ext) {
-        foreach (glob("{$publicDir}/{$dir}/*.{$ext}") ?: [] as $file) {
-            $assets[] = $file;
-        }
-    }
-}
-
-$results = new CompressionBuilder()
-    ->failFast() // throw on first error in CI/build
-    ->addManyFiles($assets, [
-        AlgorithmEnum::Gzip->value  => 9,
-        AlgorithmEnum::Brotli->value=> 11,
-        AlgorithmEnum::Zstd->value  => 19,
-    ])
+$result = CompressorFacade::make()
+    ->addGlob('public/**/*.html')
+    ->addGlob('assets/**/*.{css,js}')  // brace expansion is supported internally
+    ->withDefaultConfig(
+        ItemConfig::create()
+            ->withGzip(9)
+            ->withBrotli(11)
+            ->build()
+    )
+    ->skipAlreadyCompressed()
+    ->toDir('./dist', keepStructure: true)
+    ->failFast(true)
     ->compress();
 
-foreach ($results as $r) {
-    if (!$r->isOk()) {
-        fwrite(STDERR, "Skip {$r->getIdentifier()} (compression failed)\n");
-        continue;
+if (!$result->allOk()) {
+    foreach ($result->failures() as $id => $item) {
+        fwrite(STDERR, "Failed: {$id} - " . ($item->getFailureReason()?->getMessage() ?? 'unknown') . "\n");
     }
-    $path = $r->getIdentifier();
-
-    if ($gz = $r->getCompressedFor(AlgorithmEnum::Gzip))   file_put_contents($path . '.gz',  $gz);
-    if ($br = $r->getCompressedFor(AlgorithmEnum::Brotli)) file_put_contents($path . '.br',  $br);
-    if ($zs = $r->getCompressedFor(AlgorithmEnum::Zstd))   file_put_contents($path . '.zst', $zs);
+    exit(1);
 }
 
-echo "Precompression done: " . count($results) . " files\n";
-
+echo "Precompression done: {$result->count()} files\n";
 ```
 
-### Nginx snippet (`examples/nginx.conf`)
-
-```nginx
-# Serve precompressed static assets + static HTML cache
-# Works with files generated by Aurynx\HttpCompression (.gz/.br/.zst)
-
-http {
-    gzip_static   on;   # .gz
-    brotli_static on;   # .br (requires ngx_brotli)
-    zstd_static   on;   # .zst (requires ngx_zstd, optional)
-
-    server {
-        root /var/www/html/public;
-
-        location / {
-            # Priority:
-            # 1) Cached HTML file (/cache/static$uri.html)
-            # 2) Cached directory index (/cache/static$uri/index.html)
-            # 3) Original static file ($uri)
-            # 4) Trailing slash variant ($uri/)
-            # 5) Fallback to PHP
-            try_files
-                /cache/static$uri.html
-                /cache/static$uri/index.html
-                $uri
-                $uri/
-                /index.php?$query_string;
-        }
-
-        location ~ \.php$ {
-            include fastcgi_params;
-            fastcgi_pass unix:/run/php/php8.4-fpm.sock;
-            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-        }
-    }
-}
-```
-
-### Apache snippet (`examples/apache.conf`)
-
-```apacheconf
-# Serve precompressed assets (.br, .gz, .zst)
-AddEncoding br   .br
-AddEncoding gzip .gz
-AddEncoding zstd .zst
-
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-
-    # Prefer br, then zstd, then gzip (adjust order if needed)
-    RewriteCond %{HTTP:Accept-encoding} br
-    RewriteCond %{REQUEST_FILENAME}\.br -f
-    RewriteRule ^(.+)$ $1.br [QSA,L]
-
-    RewriteCond %{HTTP:Accept-encoding} zstd
-    RewriteCond %{REQUEST_FILENAME}\.zst -f
-    RewriteRule ^(.+)$ $1.zst [QSA,L]
-
-    RewriteCond %{HTTP:Accept-encoding} gzip
-    RewriteCond %{REQUEST_FILENAME}\.gz -f
-    RewriteRule ^(.+)$ $1.gz [QSA,L]
-</IfModule>
-
-<IfModule mod_headers.c>
-    <FilesMatch "\.(js|css|html|json|xml|svg|zst|gz|br)$">
-        Header append Vary Accept-Encoding
-    </FilesMatch>
-</IfModule>
-```
+Nginx snippets are available in `examples/nginx.conf`, Apache — `examples/apache.conf`.
 
 ---
 
@@ -187,32 +106,28 @@ AddEncoding zstd .zst
 <?php
 declare(strict_types=1);
 
-use Aurynx\HttpCompression\{CompressionBuilder, AlgorithmEnum};
+use Aurynx\HttpCompression\CompressorFacade;
+use Aurynx\HttpCompression\ValueObjects\ItemConfig;
+use Aurynx\HttpCompression\Enums\AlgorithmEnum;
 
-$results = (new CompressionBuilder())
-    ->graceful()
-    ->addMany([
-        'Doc 1: Hello world!',
-        'Doc 2: Example data',
-        'Doc 3: Another string',
-    ], [
-        AlgorithmEnum::Gzip->value  => 9,
-        AlgorithmEnum::Brotli->value=> 11,
-        AlgorithmEnum::Zstd->value  => 3,
-    ])
+$result = CompressorFacade::make()
+    ->addGlob('*.html')
+    ->withDefaultConfig(
+        ItemConfig::create()
+            ->withGzip(6)
+            ->withBrotli(4)
+            ->withZstd(3)
+            ->build()
+    )
+    ->failFast(false)
+    ->inMemory()
     ->compress();
 
-foreach ($results as $r) {
-    $id = $r->getIdentifier();
-    if ($r->isOk()) {
-        echo "✓ {$id}: all ok\n";
-    } elseif ($r->isPartial()) {
-        echo "⚠ {$id}: partial\n";
-        foreach ($r->getAlgorithmErrors() as $algo => $err) {
-            echo "   ✗ {$algo}: {$err['message']}\n";
-        }
+foreach ($result as $id => $item) {
+    if ($item->isOk()) {
+        echo "✓ {$id}: gzip size=" . $item->getSize(AlgorithmEnum::Gzip) . "\n";
     } else {
-        echo "✗ {$id}: {$r->getError()?->getMessage()}\n";
+        echo "✗ {$id}: " . ($item->getFailureReason()?->getMessage() ?? 'unknown') . "\n";
     }
 }
 ```
@@ -220,10 +135,10 @@ foreach ($results as $r) {
 ---
 
 Quick Reference
-- Namespace: `Aurynx\HttpCompression`
-- Entrypoint: `CompressionBuilder`
+- Namespace: `Aurynx\\HttpCompression`
+- Entrypoints: `CompressorFacade::make()` (batch), `CompressorFacade::once()` (single)
 - Algorithms: `AlgorithmEnum::{Gzip,Brotli,Zstd}`
-- Defaults (runtime): `{gzip:6, br:4, zstd:3}`
-- Precompression (build): `{gzip:9, br:11, zstd:19}`
-- Error modes:` .failFast()` / `.graceful()`
-- Results: `isOk()`, `isPartial()`, `isError()`, `getCompressedFor()`
+- Defaults (runtime): `{gzip:6, brotli:4, zstd:3}`
+- Precompression (build): `{gzip:9, brotli:11}` (+ zstd if available)
+- Error handling: `.failFast(true|false)`
+- Results: `CompressionResult`, `CompressionItemResult`, `CompressionSummaryResult`

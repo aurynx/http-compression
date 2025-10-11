@@ -1,7 +1,5 @@
-/docs export-ignore
 /.github export-ignore
 /tests export-ignore
 /.editorconfig export-ignore
 /.gitignore export-ignore
-/commitlint.config.cjs export-ignore
 /package.json export-ignore

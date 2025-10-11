@@ -5,38 +5,31 @@
 </p>
 
 <p align="center">
-    <b>Framework-agnostic PHP library for efficient HTTP compression</b>
+    <b>Modern PHP library for HTTP compression with native type safety</b>
 </p>
 <p align="center">gzip • brotli • zstd — simple, safe, and fast</p>
-
-
-<p align="center">
-  <a href="https://packagist.org/packages/aurynx/http-compression"><img src="https://img.shields.io/packagist/v/aurynx/http-compression.svg?style=flat-square" alt="Latest Version on Packagist"></a>
-  <a href="https://packagist.org/packages/aurynx/http-compression"><img src="https://img.shields.io/packagist/dt/aurynx/http-compression.svg?style=flat-square" alt="Total Downloads"></a>
-  <a href="https://packagist.org/packages/aurynx/http-compression"><img src="https://img.shields.io/packagist/php-v/aurynx/http-compression.svg?style=flat-square" alt="PHP Version"></a>
-  <a href="https://github.com/aurynx/http-compression/blob/main/LICENSE"><img src="https://img.shields.io/packagist/l/aurynx/http-compression.svg?style=flat-square" alt="License"></a>
-</p>
 
 <p align="center">
   <a href="#installation">Installation</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="#features">Features</a> •
-  <a href="#documentation">Documentation</a> •
-  <a href="#contributing">Contributing</a>
+  <a href="#use-cases">Use Cases</a> •
+  <a href="#api-reference">API</a> •
+  <a href="./docs/AI_GUIDE.md">AI Guide</a>
 </p>
 
 ---
 
 ## Why HttpCompression?
 
-Modern web applications need efficient compression to reduce bandwidth and improve response times. **HttpCompression** makes it simple to compress content for HTTP responses with multiple algorithms, while providing:
+Modern web applications need efficient compression to reduce bandwidth and improve response times. HttpCompression makes it simple with a clean, modern API focused on:
 
-- **Multiple Algorithm Support** — gzip, brotli (br), and zstd compression out of the box
-- **Fluent API** — intuitive builder pattern for configuring compression
-- **Batch Operations** — compress multiple files or content strings efficiently
-- **Deterministic Builds** — perfect for static file precompression (e.g., for nginx)
-- **Safe & Robust** — comprehensive error handling with fail-fast or graceful degradation
-- **Zero Framework Dependency** — works with any PHP application or framework
+- 🔷 **Native PHP 8.4+ types** — zero docblock types, full IDE autocomplete
+- 🎯 **Single facade pattern** — one intuitive API for all scenarios
+- 🚀 **Glob pattern support** — compress entire directories with wildcards
+- 💾 **Memory-safe streaming** — handle large files without memory limits
+- 🛡️ **Fail-fast validation** — catch errors at configuration time
+- 🤖 **AI-friendly design** — perfect for code generation and assistants
 
 ## Installation
 
@@ -46,413 +39,600 @@ Modern web applications need efficient compression to reduce bandwidth and impro
 - `ext-brotli` (optional, for brotli compression)
 - `ext-zstd` (optional, for zstd compression)
 
-Install via Composer:
-
 ```bash
 composer require aurynx/http-compression
 ```
 
 ## Quick Start
 
-### Basic Example
-
-Compress a string with gzip:
+### Single File Compression
 
 ```php
-use Aurynx\HttpCompression\CompressionBuilder;
-use Aurynx\HttpCompression\AlgorithmEnum;
+use Aurynx\HttpCompression\CompressorFacade;
+use Aurynx\HttpCompression\Enums\AlgorithmEnum;
 
-$builder = new CompressionBuilder();
-$builder->add('Hello, World!', AlgorithmEnum::Gzip);
+// Compress and save to file
+CompressorFacade::once()
+    ->file('public/index.html')
+    ->withGzip(9)
+    ->saveTo('public/index.html.gz');
 
-$results = $builder->compress();
+// Compress in-memory data
+$html = '<html><body>Hello World</body></html>';
+$result = CompressorFacade::once()
+    ->data($html)
+    ->withBrotli(11)
+    ->compress();
 
-foreach ($results as $result) {
-    if ($result->isOk()) {
-        $compressed = $result->getCompressedFor(AlgorithmEnum::Gzip);
-        // Use compressed data in your HTTP response
-        header('Content-Encoding: gzip');
-        echo $compressed;
-    }
-}
+$compressed = $result->getData(AlgorithmEnum::Brotli);
 ```
 
-### For AI assistants
-
-You are a coding agent working in PHP 8.4+. Use this library to compress HTTP payloads
-(strings or files) with gzip, brotli, or zstd.
-
-For a detailed guide and server integration examples, see [docs/ai.md](docs/ai.md).
-
-**Core flow:**
-1. Create `CompressionBuilder()`. Use `graceful()` for user-facing paths, `failFast()` for build steps.
-2. Add payloads via `add()` or `addFile()`; for batches use `addMany()` / `addManyFiles()`.
-3. Choose algorithms by `Accept-Encoding` (prefer `br`, then `zstd`, then `gzip`).
-4. Call `compress()`; inspect `CompressionResultDto`:
-    - `isOk()` → use `getCompressed()` or `getCompressedFor()`
-    - `isPartial()` → use successes and log `getAlgorithmErrors()`
-    - `isError()` → fall back to identity
-
-**Defaults:** gzip=6, br=4, zstd=3.  
-**Static precompression:** save `.gz` / `.br` files next to original and enable `gzip_static on;` / `brotli_static on;`.
-**Guardrails:** set `maxBytes` on the builder for large data.
-
-### Static File Delivery with Nginx and Apache
-
-If you precompress files using this library, web servers can automatically serve them
-without recompression.
-
-#### Nginx example (`examples/nginx.conf`)
-
-```nginx
-# Serve precompressed static assets (.gz, .br, .zst)
-gzip_static   on;   # .gz support
-brotli_static on;   # .br support (requires ngx_brotli)
-zstd_static   on;   # .zst support (requires ngx_zstd)
-
-# Optional: static HTML cache location
-location / {
-    try_files
-        /cache/static$uri.html
-        /cache/static$uri/index.html
-        $uri
-        $uri/
-        /index.php?$query_string;
-}
-```
-
-### Apache example (`examples/apache.conf`)
-
-```apacheconf
-AddEncoding br   .br
-AddEncoding gzip .gz
-AddEncoding zstd .zst
-
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteCond %{HTTP:Accept-encoding} br
-    RewriteCond %{REQUEST_FILENAME}\.br -f
-    RewriteRule ^(.+)$ $1.br [QSA,L]
-
-    RewriteCond %{HTTP:Accept-encoding} zstd
-    RewriteCond %{REQUEST_FILENAME}\.zst -f
-    RewriteRule ^(.+)$ $1.zst [QSA,L]
-
-    RewriteCond %{HTTP:Accept-encoding} gzip
-    RewriteCond %{REQUEST_FILENAME}\.gz -f
-    RewriteRule ^(.+)$ $1.gz [QSA,L]
-</IfModule>
-
-<IfModule mod_headers.c>
-    <FilesMatch "\.(js|css|html|json|xml|svg|zst|gz|br)$">
-        Header append Vary Accept-Encoding
-    </FilesMatch>
-</IfModule>
-```
-
-This setup allows Nginx or Apache to serve the compressed versions
-generated by `CompressionBuilder::addManyFiles()` automatically.
-
----
-
-### Multiple Algorithms
-
-Compress the same content with multiple algorithms:
+### Batch Compression
 
 ```php
-$builder = new CompressionBuilder();
-$builder->add('{"user": "john", "active": true}', [
-    AlgorithmEnum::Gzip->value => 9,    // level 9
-    AlgorithmEnum::Brotli->value => 11, // level 11
-    AlgorithmEnum::Zstd->value => 3     // level 3
-]);
+use Aurynx\HttpCompression\CompressorFacade;
+use Aurynx\HttpCompression\ValueObjects\ItemConfig;
 
-$id = $builder->getLastIdentifier();
-$results = $builder->compress();
-$result = $results[$id];
+$result = CompressorFacade::make()
+    ->addGlob('public/**/*.{html,css,js}')
+    ->withDefaultConfig(
+        ItemConfig::create()
+            ->withGzip(9)
+            ->withBrotli(11)
+            ->build()
+    )
+    ->skipAlreadyCompressed()
+    ->toDir('./dist')
+    ->compress();
 
-// Get all compressed variants
-$allCompressed = $result->getCompressed();
-// ['gzip' => '...', 'br' => '...', 'zstd' => '...']
-```
-
-### File Compression
-
-Perfect for static asset precompression:
-
-```php
-$builder = new CompressionBuilder();
-$builder->addFile('/path/to/app.js', [
-    AlgorithmEnum::Gzip->value => 9,
-    AlgorithmEnum::Brotli->value => 11
-]);
-$id = $builder->getLastIdentifier();
-$results = $builder->compress();
-$result = $results[$id];
-
-if ($result->isOk()) {
-    $gzipped = $result->getCompressedFor(AlgorithmEnum::Gzip);
-    $brotlied = $result->getCompressedFor(AlgorithmEnum::Brotli);
-    
-    // Save precompressed files
-    file_put_contents('/path/to/app.js.gz', $gzipped);
-    file_put_contents('/path/to/app.js.br', $brotlied);
-}
+echo "Compressed {$result->count()} files\n";
+echo "Success rate: " . ($result->allOk() ? '100%' : 'partial') . "\n";
 ```
 
 ## Features
 
-### Fluent Builder API
+### ✨ Native Type Safety
 
-Chain methods for intuitive configuration:
+The public API uses native PHP 8.4+ types everywhere (parameters, return types, readonly DTOs). This makes the library:
+- Easier for IDEs and AI agents to navigate (no docblock type guessing)
+- Safer at runtime thanks to engine-level type checks
+- More self-documenting due to explicit signatures
 
+Example signature:
 ```php
-$results = new CompressionBuilder()
-    ->add('Content 1', AlgorithmEnum::Gzip)
-    ->add('Content 2', AlgorithmEnum::Brotli)
-    ->addFile('/path/to/file.txt', [
-        AlgorithmEnum::Gzip->value => 6,
-        AlgorithmEnum::Brotli->value => 4
-    ])
+public function compress(ItemConfig $config): CompressionResult
+```
+
+---
+
+### 🎯 Fluent Facade API
+
+Two facades for different scenarios:
+
+#### `CompressorFacade::make()` — Batch compression
+```php
+CompressorFacade::make()
+    ->addFile('index.html')
+    ->addGlob('assets/*.css')
+    ->withDefaultConfig(ItemConfig::create()->withGzip(9)->build())
+    ->toDir('./output')
     ->compress();
 ```
 
-### Batch Operations
+#### `CompressorFacade::once()` — Quick single-item tasks
+```php
+CompressorFacade::once()
+    ->file('logo.svg')
+    ->withGzip(9)
+    ->saveTo('logo.svg.gz');
+```
 
-Compress multiple items efficiently:
+---
+
+### 🚀 Glob Pattern Support
+
+Compress entire directories with powerful glob patterns:
 
 ```php
-// Raw content
-$builder->addMany(['data1', 'data2', 'data3'], AlgorithmEnum::Gzip);
+CompressorFacade::make()
+    ->addGlob('public/**/*.html')           // All HTML files recursively
+    ->addGlob('assets/*.{css,js}')          // CSS and JS in assets/
+    ->addGlob('fonts/*.woff2')              // Specific extension
+    ->skipAlreadyCompressed()               // Skip images, videos, etc.
+    ->toDir('./dist', keepStructure: true)
+    ->compress();
+```
 
-// Multiple files
-$builder->addManyFiles([
-    '/path/to/file1.css',
-    '/path/to/file2.js',
-    '/path/to/file3.html'
-], [
-    AlgorithmEnum::Gzip->value => 9,
-    AlgorithmEnum::Brotli->value => 11
+---
+
+### 💾 Memory-Safe Streaming
+
+Handle large files without loading into memory:
+
+```php
+use Aurynx\HttpCompression\ValueObjects\OutputConfig;
+
+$result = CompressorFacade::make()
+    ->addFile('large-file.json')  // 500MB file
+    ->withDefaultConfig(ItemConfig::create()->withGzip(6)->build())
+    ->inMemory(maxBytes: 100_000_000)  // 100MB limit
+    ->compress();
+
+// Stream compressed data
+$result->first()->read(AlgorithmEnum::Gzip, function (string $chunk) {
+    echo $chunk;  // Process in chunks
+});
+```
+
+---
+
+### 🛡️ Fail-Fast Validation
+
+Errors are caught at configuration time, not during compression:
+
+```php
+// ❌ Throws immediately (invalid level)
+AlgorithmSet::gzip(99);  // InvalidArgumentException: Level must be between 1 and 9
+
+// ❌ Throws immediately (multiple algorithms for saveTo)
+CompressorFacade::once()
+    ->file('test.txt')
+    ->withGzip(9)
+    ->withBrotli(11)  // Multiple algorithms
+    ->saveTo('test.gz');  // CompressionException: saveTo() requires exactly one algorithm
+```
+
+---
+
+### 📈 Rich Result Objects
+
+Detailed statistics and easy access:
+
+```php
+$result = CompressorFacade::make()
+    ->addGlob('*.html')
+    ->withDefaultConfig(ItemConfig::create()->withGzip(9)->withBrotli(11)->build())
+    ->inMemory()
+    ->compress();
+
+// Access results
+foreach ($result as $id => $item) {
+    if ($item->isOk()) {
+        echo "Original: {$item->originalSize} bytes\n";
+        echo "Gzip: {$item->compressedSizes['gzip']} bytes\n";
+        echo "Brotli: {$item->compressedSizes['brotli']} bytes\n";
+    }
+}
+
+// Aggregated statistics
+$summary = $result->summary();
+echo "Median compression ratio (gzip): " . $summary->getMedianRatio(AlgorithmEnum::Gzip) . "\n";
+echo "P95 compression time (brotli): " . $summary->getP95TimeMs(AlgorithmEnum::Brotli) . " ms\n";
+```
+
+---
+
+## Use Cases
+
+### 1. Static Site Pre-Compression
+
+Compress assets during build for nginx `gzip_static`:
+
+```php
+use Aurynx\HttpCompression\CompressorFacade;
+use Aurynx\HttpCompression\ValueObjects\ItemConfig;
+
+// Build script
+$result = CompressorFacade::make()
+    ->addGlob('dist/**/*.{html,css,js,svg,json}')
+    ->withDefaultConfig(
+        ItemConfig::create()
+            ->withGzip(9)
+            ->withBrotli(11)
+            ->build()
+    )
+    ->skipAlreadyCompressed()
+    ->toDir('./dist', keepStructure: true)
+    ->compress();
+
+if (!$result->allOk()) {
+    foreach ($result->failures() as $id => $failure) {
+        echo "Failed: {$id} - {$failure->getFailureReason()?->getMessage()}\n";
+    }
+    exit(1);
+}
+
+echo "✓ Compressed {$result->count()} files\n";
+```
+
+**Nginx configuration:**
+```nginx
+gzip_static on;
+brotli_static on;
+```
+
+---
+
+### 2. Dynamic HTTP Response Compression
+
+Compress content on-the-fly with caching:
+
+```php
+use Aurynx\HttpCompression\CompressorFacade;
+use Aurynx\HttpCompression\AlgorithmEnum;
+
+function compressResponse(string $content, string $acceptEncoding): string
+{
+    $cacheKey = 'compressed_' . md5($content) . '_' . $acceptEncoding;
+    
+    if ($cached = apcu_fetch($cacheKey)) {
+        return $cached;
+    }
+    
+    $algo = str_contains($acceptEncoding, 'br') ? AlgorithmEnum::Brotli : AlgorithmEnum::Gzip;
+    
+    $result = CompressorFacade::once()
+        ->data($content)
+        ->withAlgorithm($algo, $algo->getDefaultLevel())
+        ->compress();
+    
+    $compressed = $result->getData($algo);
+    apcu_store($cacheKey, $compressed, 3600);
+    
+    return $compressed;
+}
+
+// In your controller
+$html = view('welcome')->render();
+$acceptEncoding = $_SERVER['HTTP_ACCEPT_ENCODING'] ?? '';
+
+if (str_contains($acceptEncoding, 'br') || str_contains($acceptEncoding, 'gzip')) {
+    $compressed = compressResponse($html, $acceptEncoding);
+    header('Content-Encoding: ' . (str_contains($acceptEncoding, 'br') ? 'br' : 'gzip'));
+    echo $compressed;
+} else {
+    echo $html;
+}
+```
+
+---
+
+### 3. API Response Compression
+
+Compress JSON API responses:
+
+```php
+use Aurynx\HttpCompression\CompressorFacade;
+use Aurynx\HttpCompression\AlgorithmEnum;
+
+function compressApiResponse(array $data, string $acceptEncoding): string
+{
+    $json = json_encode($data);
+    
+    if (!str_contains($acceptEncoding, 'gzip')) {
+        return $json;
+    }
+    
+    $result = CompressorFacade::once()
+        ->data($json)
+        ->withGzip(6)  // Lower level for speed
+        ->compress();
+    
+    header('Content-Encoding: gzip');
+    header('Vary: Accept-Encoding');
+    
+    return $result->getData(AlgorithmEnum::Gzip);
+}
+
+// Usage
+$data = ['users' => User::all()];
+echo compressApiResponse($data, $_SERVER['HTTP_ACCEPT_ENCODING'] ?? '');
+```
+
+---
+
+### 4. Log File Archival
+
+Compress and archive old log files:
+
+```php
+use Aurynx\HttpCompression\CompressorFacade;
+use Aurynx\HttpCompression\ValueObjects\ItemConfig;
+
+// Daily cron job
+$result = CompressorFacade::make()
+    ->addGlob('storage/logs/*.log')
+    ->withDefaultConfig(ItemConfig::create()->withZstd(19)->build())  // Maximum compression
+    ->toDir('storage/logs/archive', keepStructure: false)
+    ->compress();
+
+// Delete originals
+foreach ($result->successes() as $id => $item) {
+    $originalPath = "storage/logs/{$id}";
+    if (file_exists($originalPath)) {
+        unlink($originalPath);
+    }
+}
+
+echo "Archived {$result->count()} log files\n";
+```
+
+---
+
+### 5. Asset Pipeline Integration
+
+Integrate with your build tools:
+
+```php
+use Aurynx\HttpCompression\CompressorFacade;
+use Aurynx\HttpCompression\ValueObjects\ItemConfig;
+
+class AssetCompiler
+{
+    public function compile(): void
+    {
+        // Step 1: Bundle and minify (webpack, vite, etc.)
+        system('npm run build');
+        
+        // Step 2: Compress for production
+        $result = CompressorFacade::make()
+            ->addGlob('public/build/**/*.{js,css}')
+            ->addGlob('public/build/**/*.{svg,json}')
+            ->withDefaultConfig(
+                ItemConfig::create()
+                    ->withGzip(9)
+                    ->withBrotli(11)
+                    ->build()
+            )
+            ->skipExtensions(['woff2', 'png', 'jpg'])
+            ->toDir('public/build', keepStructure: true)
+            ->failFast(true)
+            ->compress();
+        
+        if (!$result->allOk()) {
+            throw new \RuntimeException('Asset compression failed');
+        }
+        
+        $summary = $result->summary();
+        $avgRatio = $summary->getAverageRatio(AlgorithmEnum::Gzip);
+        echo "✓ Compressed {$result->count()} assets (avg ratio: " . round($avgRatio * 100, 1) . "%)\n";
+    }
+}
+```
+
+---
+
+## API Reference
+
+### Facades
+
+#### `CompressorFacade::make()` — Batch Compression
+
+```php
+use Aurynx\HttpCompression\CompressorFacade;
+
+$result = CompressorFacade::make()
+    // Add inputs
+    ->add(CompressionInput $input, ?ItemConfig $config = null)
+    ->addMany(iterable $inputs)
+    ->addFile(string $path, ?ItemConfig $config = null, ?string $id = null)
+    ->addData(string $data, ?ItemConfig $config = null, ?string $id = null)
+    ->addGlob(string $pattern, ?ItemConfig $config = null)
+    ->addFrom(InputProviderInterface $provider, ?ItemConfig $config = null)
+    
+    // Configuration
+    ->withDefaultConfig(ItemConfig $config)
+    
+    // Output
+    ->toDir(string $dir, bool $keepStructure = false)
+    ->inMemory(int $maxBytes = 5_000_000)
+    
+    // Options
+    ->failFast(bool $enable = true)
+    ->skipExtensions(array $extensions)
+    ->skipAlreadyCompressed()
+    
+    // Execute
+    ->compress(): CompressionResult;
+```
+
+#### `CompressorFacade::once()` — Single Item
+
+```php
+use Aurynx\HttpCompression\CompressorFacade;
+
+CompressorFacade::once()
+    // Input
+    ->file(string $path)
+    ->data(string $data)
+    
+    // Algorithm (choose ONE)
+    ->withGzip(int $level = 6)
+    ->withBrotli(int $level = 11)
+    ->withZstd(int $level = 3)
+    
+    // Execute
+    ->compress(): CompressionItemResult
+    ->saveTo(string $path): void;  // Requires exactly one algorithm
+```
+
+---
+
+### Configuration
+
+#### `ItemConfig` — Compression Configuration
+
+```php
+use Aurynx\HttpCompression\ValueObjects\ItemConfig;
+use Aurynx\HttpCompression\ValueObjects\AlgorithmSet;
+
+// Using builder
+$config = ItemConfig::create()
+    ->withGzip(9)
+    ->withBrotli(11)
+    ->withZstd(3)
+    ->limitBytes(5_000_000)
+    ->build();
+
+// Direct instantiation
+$config = new ItemConfig(
+    algorithms: AlgorithmSet::gzip(9),
+    maxBytes: 1_000_000
+);
+
+// Static factories
+$config = ItemConfig::gzip(9);
+$config = ItemConfig::brotli(11);
+$config = ItemConfig::zstd(3);
+```
+
+#### `AlgorithmSet` — Algorithm Configuration
+
+```php
+use Aurynx\HttpCompression\ValueObjects\AlgorithmSet;
+use Aurynx\HttpCompression\Enums\AlgorithmEnum;
+
+// Static factories
+$set = AlgorithmSet::gzip(9);
+$set = AlgorithmSet::brotli(11);
+$set = AlgorithmSet::zstd(3);
+$set = AlgorithmSet::fromDefaults();  // All algorithms with default levels
+
+// Manual construction from pairs
+$set = AlgorithmSet::from([
+    [AlgorithmEnum::Gzip, 9],
+    [AlgorithmEnum::Brotli, 11],
 ]);
 ```
 
-### Fine-Grained Control
+---
 
-Configure individual items:
+### Results
 
-```php
-$builder = new CompressionBuilder();
-$builder->add('Content', AlgorithmEnum::Gzip, 'my-custom-id');
-
-// Reconfigure later
-$builder->forItem('my-custom-id')
-    ->withAlgorithms([
-        AlgorithmEnum::Gzip->value => 9,
-        AlgorithmEnum::Zstd->value => 3
-    ]);
-
-// Or configure the last added item
-$builder->add('Another content')
-    ->forLast()
-    ->withAlgorithms(AlgorithmEnum::Brotli);
-```
-
-### Algorithm Detection
-
-Check which compression algorithms are available on your system:
+#### `CompressionResult` — Batch Results
 
 ```php
-// Get all available algorithms
-$available = AlgorithmEnum::available();
+$result = CompressorFacade::make()->compress();
 
-foreach ($available as $algo) {
-    echo "{$algo->value} is available\n";
-}
+// Access
+$result->get(string $id): CompressionItemResult
+$result->first(): CompressionItemResult
+$result->toArray(): array
 
-// Check a specific algorithm
-if (AlgorithmEnum::Brotli->isAvailable()) {
-    // Use brotli compression
+// Filtering
+$result->successes(): array
+$result->failures(): array
+$result->allOk(): bool
+
+// Statistics
+$result->summary(): CompressionSummaryResult
+$result->count(): int
+
+// Iteration
+foreach ($result as $id => $item) {
+    // Process each item
 }
 ```
 
-### Error Handling
-
-Choose between fail-fast or graceful degradation:
+#### `CompressionItemResult` — Single Item Result
 
 ```php
-// Fail-fast mode (default): throws exception on first error
-$builder = new CompressionBuilder()->failFast();
+$item = $result->first();
 
-// Graceful mode: continues on errors, collects them in results
-$builder = new CompressionBuilder()->graceful();
+// Status
+$item->isOk(): bool
+$item->success: bool
+$item->originalSize: int
 
-$results = $builder->compress();
+// Data access
+$item->getData(AlgorithmEnum $algo): string
+$item->getStream(AlgorithmEnum $algo): resource
+$item->read(AlgorithmEnum $algo, callable $consumer): void
 
-foreach ($results as $result) {
-    if ($result->isOk()) {
-        // All algorithms succeeded
-        $compressed = $result->getCompressed();
-    } elseif ($result->isPartial()) {
-        // Some algorithms succeeded, some failed
-        $successful = $result->getCompressed();
-        $errors = $result->getAlgorithmErrors();
-    } else {
-        // Complete failure
-        $error = $result->getError();
-        echo "Error: " . $error->getMessage();
-    }
-}
+// Metadata
+$item->has(AlgorithmEnum $algo): bool
+$item->compressedSizes: array<string, int>
+$item->compressionTimes: array<string, float>
+$item->errors: array<string, \Throwable>
+$item->getFailureReason(): ?\Throwable
 ```
 
-### Accessing Results
-
-Results are returned as an associative array indexed by item identifiers:
+#### `CompressionSummaryResult` — Aggregated Statistics
 
 ```php
-// For single item - use getLastIdentifier()
-$builder->add('content', AlgorithmEnum::Gzip);
-$id = $builder->getLastIdentifier();
-$results = $builder->compress();
-$result = $results[$id];  // Direct access by identifier
+$summary = $result->summary();
 
-// With custom identifier
-$builder->add('content', AlgorithmEnum::Gzip, 'my-data');
-$results = $builder->compress();
-$result = $results['my-data'];  // Access by custom identifier
+// Compression ratios (compressed / original)
+$summary->getAverageRatio(AlgorithmEnum $algo): float
+$summary->getMedianRatio(AlgorithmEnum $algo): float  // p50
+$summary->getP95Ratio(AlgorithmEnum $algo): float
 
-// For batch - iterate over all results
-foreach ($results as $identifier => $result) {
-    echo "Processing $identifier: ";
-    if ($result->isOk()) {
-        echo "✓ Success\n";
-    }
-}
+// Timing (milliseconds)
+$summary->getMedianTimeMs(AlgorithmEnum $algo): float  // p50
+$summary->getP95TimeMs(AlgorithmEnum $algo): float
+$summary->getTotalTimeMs(AlgorithmEnum $algo): float
+
+// Counts
+$summary->getTotalItems(): int
+$summary->getSuccessCount(): int
+$summary->getFailureCount(): int
 ```
 
-### Size Limits
+---
 
-Protect against excessive memory usage:
+
+## For AI Assistants
+
+This library is designed to be AI-friendly with:
+
+- ✅ **Native types** — no docblock parsing needed
+- ✅ **Explicit naming** — `CompressionResult`, `AlgorithmEnum`, etc.
+- ✅ **Fluent API** — easy to chain methods
+- ✅ **Fail-fast** — errors are obvious and immediate
+- ✅ **Immutable value objects** — no side effects
+
+For a deeper, agent-focused walkthrough, see the AI Guide: [AI_GUIDE.md](./docs/AI_GUIDE.md). You can also use the structured hints in [`docs/ai.md`](./docs/ai.md) and the machine-readable schema [`docs/ai-tool.json`](./docs/ai-tool.json).
+
+### Common Patterns
 
 ```php
-// Global limit for all items (1MB)
-$builder = new CompressionBuilder(maxBytes: 1_048_576);
+// Quick compression
+CompressorFacade::once()->file('test.txt')->withGzip(9)->saveTo('test.txt.gz');
 
-// Or set per item
-$builder->add('Large content', AlgorithmEnum::Gzip)
-    ->forLast()
-    ->withMaxBytes(512_000); // 500KB limit
+// Batch with glob
+CompressorFacade::make()
+    ->addGlob('*.html')
+    ->withDefaultConfig(ItemConfig::create()->withGzip(9)->build())
+    ->toDir('./out')
+    ->compress();
+
+// Multiple algorithms
+$config = ItemConfig::create()
+    ->withGzip(9)
+    ->withBrotli(11)
+    ->withZstd(3)
+    ->build();
 ```
 
-### Result Inspection
+### Avoid These Mistakes
 
-Rich result objects with comprehensive information:
-
+❌ Multiple algorithms with `saveTo()`:
 ```php
-// Get result by identifier
-$id = $builder->getLastIdentifier();
-$result = $results[$id];
-
-// Check status
-$result->isOk();        // All algorithms succeeded
-$result->isPartial();   // Some algorithms succeeded
-$result->isError();     // Complete failure
-
-// Get compressed data
-$result->getCompressed();                           // All successful compressions
-$result->getCompressedFor(AlgorithmEnum::Gzip);     // Specific algorithm
-$result->hasAlgorithm(AlgorithmEnum::Brotli);       // Check if the algorithm was used
-
-// Get errors
-$result->getErrors();                               // All errors
-$result->getAlgorithmError(AlgorithmEnum::Zstd);    // Error for a specific algorithm
-
-// Get compression metrics
-$result->getOriginalSize();                         // Original size in bytes
-$result->getCompressedSize(AlgorithmEnum::Gzip);    // Compressed size
-$result->getCompressionRatio(AlgorithmEnum::Gzip);  // Ratio (0.0-1.0)
-$result->getCompressionPercentage(AlgorithmEnum::Gzip); // Reduction %
-$result->getSavedBytes(AlgorithmEnum::Gzip);        // Bytes saved
-$result->isEffective(AlgorithmEnum::Gzip);          // Was compression effective?
-
-// Get identifier
-$result->getIdentifier(); // Item identifier
+// WRONG - saveTo() requires exactly one algorithm
+CompressorFacade::once()->file('x')->withGzip()->withBrotli()->saveTo('x.gz');
 ```
 
-## Batch Compression Statistics
-
-Get aggregated metrics when compressing multiple files:
-
+✅ Use `compress()` instead:
 ```php
-use Aurynx\HttpCompression\DTO\CompressionStatsDto;
-
-// Access individual result by identifier
-// foreach ($results as $id => $result) { ... }
-
-$builder = new CompressionBuilder();
-$builder->addManyFiles($files, AlgorithmEnum::Gzip);
-$results = $builder->compress();
-
-// Get aggregated statistics
-$stats = CompressionStatsDto::fromResults($results);
-
-echo $stats->summary();
-// Output:
-// Compression Statistics:
-//   Total items: 50
-//   Successful: 50
-//   Original size: 2.34 MB
-//   gzip: 512.45 KB (saved 1.85 MB, 78.9% reduction)
-
-// Access specific metrics
-$totalSaved = $stats->getTotalSavedBytes(AlgorithmEnum::Gzip);
-$avgPercentage = $stats->getAveragePercentage(AlgorithmEnum::Gzip);
-$successRate = $stats->getSuccessRate(); // 0.0 to 1.0
+$result = CompressorFacade::once()->file('x')->withGzip()->withBrotli()->compress();
+$result->getData(AlgorithmEnum::Gzip);
 ```
 
-## Documentation
-
-- **[Usage Examples](docs/examples.md)** — Static asset precompression, API responses, build scripts
-- **[Advanced Usage](docs/advanced-usage.md)** — Direct compressor access, middleware, custom implementations, testing, benchmarks, batch statistics
-- **[API Reference](docs/api-reference.md)** — Complete API documentation for all classes and methods
-- **[AI Integration Guide](docs/ai.md)** — Guide for AI coding assistants
-
-## Testing
-
-Run the test suite:
-
-```bash
-composer test
-```
-
-Run static analysis:
-
-```bash
-composer stan
-```
-
-Check code style:
-
-```bash
-composer cs:check
-```
-
-Fix code style:
-
-```bash
-composer cs:fix
-```
+---
 
 ## Contributing
 
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests and code style checks
-5. Commit your changes (see commit message guidelines)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ### Development Setup
 
@@ -463,16 +643,20 @@ composer install
 # Run tests
 composer test
 
-# Run static analysis
-composer stan
+# Run PHPStan
+composer phpstan
 
-# Check code style
-composer cs:check
+# Run CS Fixer
+composer cs-fix
 ```
+
+---
 
 ## License
 
-This library is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+The MIT License (MIT). Please see [License File](LICENSE) for more information.
+
+---
 
 ## Credits
 
