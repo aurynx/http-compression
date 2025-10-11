@@ -7,30 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2025-10-11
 
-### Added
-- Added comprehensive documentation for compression metrics usage and examples
-- Added examples for algorithm availability and selection in advanced usage docs
-- Added advanced usage documentation for compressors
-- Added Contributor Covenant code of conduct
-- Added contributing guidelines for contributors
-- Enhanced security policy with GitHub advisories and SLA
-- Added security policy for vulnerability reporting
-- Configured Dependabot for Composer dependencies
-- Added homepage and support links to composer.json
-- Added constructor and last identifier retrieval method to AI tool documentation
-
 ### Changed
-- **BREAKING**: Major refactor of core compression classes and architecture
+- **BREAKING**: Major architectural refactoring of the entire library
+  - Replaced `CompressionBuilder` with new `CompressionEngine` and `CompressorFacade`
+  - Introduced `SingleItemFacade` for individual item compression
+  - Reorganized compressor classes: moved from `Algorithms/` to `Compressors/` namespace
+  - Refactored DTOs: replaced `CompressionItemDto`, `CompressionStatsDto` with new Result objects
+  - Introduced new builder pattern: `ItemConfigBuilder` and `ItemScopeBuilder`
+  - Added value objects: `AlgorithmSet`, `CompressionInput`, `DataInput`, `FileInput`, `ItemConfig`, `OutputConfig`
+  - Added result objects: `CompressionItemResult`, `CompressionResult`, `CompressionSummaryResult`
+  - Enhanced `AlgorithmEnum` with metadata and attributes support
+- Completely rewrote and expanded documentation:
+  - Enhanced README with clearer examples and structure
+  - Added comprehensive AI_GUIDE.md for AI assistants
+  - Simplified advanced-usage.md and api-reference.md
+  - Updated all code examples across documentation
 - Updated composer.json with additional support information
-- Renamed Compression classes and updated all references
-- Aligned variable spacing for consistency in tests
+- Enhanced CONTRIBUTING.md with better guidelines
+- Improved SECURITY.md with GitHub advisories integration
 
-### Fixed
-- Fixed PHP code example for result inspection in README
-- Adjusted default compression levels for algorithms
-- Fixed namespace casing for HttpCompression classes in documentation
+### Added
+- New `Attributes/` namespace with `AlgorithmAttribute`, `CompressionLevelAttribute`, `OutputFormatAttribute`
+- New `Builders/` namespace for configuration builders
+- New `Providers/GlobInputProvider` for glob-based file input
+- New `Support/` namespace with `AlgorithmMetadata` and `Hashing` utilities
+- New enums: `ErrorCodeEnum`, `InputTypeEnum`, `OutputModeEnum`, `PrecompressedExtensionEnum`
+- DTO for algorithm metadata: `AlgorithmMetaDto`
+- PHPStan stub for Zstd extension
+- Input provider interface for extensibility
 
-## [0.1.1] - 2024-12-XX
+### Removed
+- Removed old `CompressionBuilder` class (replaced by new architecture)
+- Removed old DTO classes: `CompressionItemDto`, `CompressionStatsDto`
+- Removed `CompressorFactory` (functionality integrated into new architecture)
+- Removed `ItemConfigurator` (replaced by builders)
+- Removed legacy test files that tested old architecture
+- Removed old algorithm classes from `Algorithms/` namespace
+
+## [0.1.1] - 2025-10-10
 
 ### Added
 - Added server integration examples for static file delivery
@@ -42,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced project description and usage examples
 - Updated description to include Zstd compression support
 
-## [0.1.0] - 2024-12-XX
+## [0.1.0] - 2025-10-10
 
 ### Added
 - Initial release
