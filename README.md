@@ -458,6 +458,23 @@ CompressorFacade::once()
 
 ---
 
+## Notes on Saving Files
+
+- saveTo(path):
+  - Atomic write (tmp + rename) to the target path
+  - Existing target is replaced (OverwritePolicy=Replace)
+  - The target directory must already exist (no auto-create)
+
+- saveAllTo(directory, basename, options):
+  - basename must be a plain filename (no '/' or '\\', not '.' or '..')
+  - Options:
+    - overwritePolicy: fail|replace|skip (default fail)
+    - atomicAll: bool (default true) — all-or-nothing semantics
+    - allowCreateDirs: bool (default true)
+    - permissions: int|null — chmod after successful rename
+
+---
+
 ### Configuration
 
 #### `ItemConfig` — Compression Configuration

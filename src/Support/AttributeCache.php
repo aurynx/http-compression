@@ -24,14 +24,17 @@ final class AttributeCache
     private static array $cache = [];
 
     /**
+     * Get AlgorithmAttribute for specific enum case and cache it.
+     *
      * @throws CompressionException
      * @throws LogicException
      */
-    public static function algorithmForEnumCase(string $enumFqcn, string $caseName): object
+    public static function algorithmForEnumCase(string $enumFqcn, string $caseName): AlgorithmAttribute
     {
         $key = "{$enumFqcn}::{$caseName}";
 
-        return self::$cache[$key] ??= (static function () use ($enumFqcn, $caseName, $key): object {
+        /** @var AlgorithmAttribute */
+        return self::$cache[$key] ??= (static function () use ($enumFqcn, $caseName, $key): AlgorithmAttribute {
             if (!is_a($enumFqcn, UnitEnum::class, true)) {
                 throw new LogicException("{$enumFqcn} is not an enum");
             }
@@ -48,7 +51,10 @@ final class AttributeCache
                 throw new CompressionException("Expected exactly one AlgorithmAttribute on {$key}, got {$count}");
             }
 
-            return $attrs[0]->newInstance();
+            /** @var AlgorithmAttribute $instance */
+            $instance = $attrs[0]->newInstance();
+
+            return $instance;
         })();
     }
 

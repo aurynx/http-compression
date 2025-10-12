@@ -41,8 +41,24 @@ Simplified facade for one-off compression.
 - withBrotli(int $level = 11): self
 - withZstd(int $level = 3): self
 - withAlgorithm(AlgorithmEnum $algo, int $level): self
+- tryGzip(int $level = 6): self — optional gzip (skip if unavailable)
+- tryBrotli(int $level = 11): self — optional brotli (skip if unavailable)
+- tryZstd(int $level = 3): self — optional zstd (skip if unavailable)
+- tryAlgorithm(AlgorithmEnum $algo, int $level): self — optional custom algo
 - compress(): CompressionItemResult
-- saveTo(string $path): void — requires exactly one algorithm
+- saveTo(string $path): void — requires exactly one algorithm; atomic write via tmp+rename; replaces existing target; the target directory must already exist (no auto-create)
+- saveAllTo(string $directory, string $basename, array $options = []): void
+  - basename must be a plain filename (no '/' or '\\', not '.' or '..')
+  - options:
+    - overwritePolicy: OverwritePolicyEnum|'fail'|'replace'|'skip' (default 'fail')
+    - atomicAll: bool (default true) — all-or-nothing; on failure nothing is renamed
+    - allowCreateDirs: bool (default true) — create directory if missing
+    - permissions: int|null — chmod after successful rename
+- saveCompressed(array $options = []): void — save next to source file (requires file() input)
+- trySaveTo(string $path): bool — returns false and sets getLastError() on failure
+- trySaveAllTo(string $directory, string $basename, array $options = []): bool
+- trySaveCompressed(array $options = []): bool
+- getLastError(): ?CompressionException
 
 ---
 
@@ -102,6 +118,31 @@ Cases: Gzip, Brotli, Zstd.
 - getExtension(): string — file extension (gz/br/zst)
 - getContentEncoding(): string — HTTP content-encoding value
 - isCpuIntensive(): bool
+
+---
+
+## OverwritePolicyEnum
+
+Controls how existing files are handled by saveAllTo/saveCompressed.
+
+### Values
+- Fail — throw if target exists
+- Replace — overwrite target
+- Skip — keep existing target and skip writing
+
+### Helpers
+- fromOption(null|string|OverwritePolicyEnum): OverwritePolicyEnum
+- isReplace(): bool
+- isSkip(): bool
+
+---
+
+## Support Helpers
+
+### AcceptEncoding
+- AcceptEncoding::negotiate(string $header, AlgorithmEnum ...$available): ?AlgorithmEnum
+  - Parses Accept-Encoding with q-factors and returns the best acceptable algorithm from the provided list.
+  - Returns null to indicate identity (no compression) or if nothing acceptable.
 
 ---
 

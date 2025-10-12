@@ -38,18 +38,12 @@ Compress JSON responses based on the client's Accept-Encoding header:
 ```php
 use Aurynx\HttpCompression\CompressorFacade;
 use Aurynx\HttpCompression\Enums\AlgorithmEnum;
+use Aurynx\HttpCompression\Support\AcceptEncoding;
 
 function compressResponse(string $json, string $acceptEncoding): array
 {
-    // Choose best algorithm (prefer br → zstd → gzip)
-    $algo = null;
-    if (str_contains($acceptEncoding, 'br') && AlgorithmEnum::Brotli->isAvailable()) {
-        $algo = AlgorithmEnum::Brotli;
-    } elseif (str_contains($acceptEncoding, 'zstd') && AlgorithmEnum::Zstd->isAvailable()) {
-        $algo = AlgorithmEnum::Zstd;
-    } elseif (str_contains($acceptEncoding, 'gzip') && AlgorithmEnum::Gzip->isAvailable()) {
-        $algo = AlgorithmEnum::Gzip;
-    }
+    // Negotiate the best acceptable algorithm among installed ones
+    $algo = AcceptEncoding::negotiate($acceptEncoding, ...AlgorithmEnum::available());
 
     if ($algo === null) {
         return ['content' => $json, 'encoding' => 'identity'];

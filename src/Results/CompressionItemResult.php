@@ -221,6 +221,40 @@ final readonly class CompressionItemResult
     }
 
     /**
+     * Get saving ratio (1 - compressed/original), clamped to [0.0, 1.0]
+     * For empty original, returns 0.0
+     */
+    public function getSavingRatio(AlgorithmEnum $algo): float
+    {
+        if ($this->originalSize === 0) {
+            return 0.0;
+        }
+
+        $saving = 1.0 - $this->getRatio($algo);
+
+        // Clamp to [0.0, 1.0] to avoid negative values when compressed > original
+        if ($saving < 0.0) {
+            return 0.0;
+        }
+
+        if ($saving > 1.0) {
+            return 1.0;
+        }
+
+        return $saving;
+    }
+
+    /**
+     * Get human-friendly saving percent string, e.g. "48%" or with precision "48.2%"
+     */
+    public function getCompressionPercent(AlgorithmEnum $algo, int $precision = 0): string
+    {
+        $pct = $this->getSavingRatio($algo) * 100.0;
+
+        return number_format($pct, max(0, $precision)) . '%';
+    }
+
+    /**
      * Get compression time in milliseconds
      */
     public function getCompressionTimeMs(AlgorithmEnum $algo): float

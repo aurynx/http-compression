@@ -30,6 +30,7 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Aurynx\HttpCompression\CompressorFacade;
 use Aurynx\HttpCompression\Enums\AlgorithmEnum;
+use Aurynx\HttpCompression\Support\AcceptEncoding;
 
 class CompressionMiddleware implements MiddlewareInterface
 {
@@ -42,7 +43,7 @@ class CompressionMiddleware implements MiddlewareInterface
         $response = $handler->handle($request);
 
         $accept = $request->getHeaderLine('Accept-Encoding');
-        $algo = $this->negotiateAlgorithm($accept);
+        $algo = AcceptEncoding::negotiate($accept, ...AlgorithmEnum::available());
 
         if ($algo === null) {
             return $response; // No compression
@@ -67,20 +68,6 @@ class CompressionMiddleware implements MiddlewareInterface
             ->withHeader('Content-Encoding', $algo->value)
             ->withHeader('Vary', 'Accept-Encoding')
             ->withoutHeader('Content-Length');
-    }
-
-    private function negotiateAlgorithm(string $accept): ?AlgorithmEnum
-    {
-        if (str_contains($accept, 'br') && AlgorithmEnum::Brotli->isAvailable()) {
-            return AlgorithmEnum::Brotli;
-        }
-        if (str_contains($accept, 'zstd') && AlgorithmEnum::Zstd->isAvailable()) {
-            return AlgorithmEnum::Zstd;
-        }
-        if (str_contains($accept, 'gzip') && AlgorithmEnum::Gzip->isAvailable()) {
-            return AlgorithmEnum::Gzip;
-        }
-        return null;
     }
 }
 ```
@@ -125,18 +112,14 @@ foreach (AlgorithmEnum::available() as $algo) {
 ```php
 use Aurynx\HttpCompression\CompressorFacade;
 use Aurynx\HttpCompression\Enums\AlgorithmEnum;
+use Aurynx\HttpCompression\Support\AcceptEncoding;
 
-function compressBest(string $content): string
+function compressBest(string $content, string $acceptHeader): string
 {
-    $order = [AlgorithmEnum::Brotli, AlgorithmEnum::Zstd, AlgorithmEnum::Gzip];
-    $algo = null;
-
-    foreach ($order as $candidate) {
-        if ($candidate->isAvailable()) { $algo = $candidate; break; }
-    }
+    $algo = AcceptEncoding::negotiate($acceptHeader, ...AlgorithmEnum::available());
 
     if ($algo === null) {
-        return $content; // no compression available
+        return $content; // no compression available or identity preferred
     }
 
     $result = CompressorFacade::once()
@@ -176,7 +159,10 @@ use Aurynx\HttpCompression\CompressorFacade;
 use Aurynx\HttpCompression\ValueObjects\ItemConfig;
 
 $ok = CompressorFacade::make()
-    ->addGlob('assets/**/*.{js,css,html,svg,json}')
+    // Portable patterns (no GLOB_BRACE)
+    ->addGlob('assets/**/*.js')
+    ->addGlob('assets/**/*.css')
+    ->addGlob('assets/**/*.html')
     ->withDefaultConfig(ItemConfig::create()->withGzip(9)->withBrotli(11)->build())
     ->skipAlreadyCompressed()
     ->toDir('public/build', keepStructure: true)
