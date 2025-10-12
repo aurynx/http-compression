@@ -334,8 +334,8 @@ When changing public API, update:
 ### AI Documentation
 
 When adding new features, consider updating:
-- `docs/ai.md` — AI agent guide
-- `docs/ai-tool.json` — machine-readable API schema
+- `docs/AI_GUIDE.md` — AI agent guide
+- `docs/ai-manifest.json` — machine-readable API schema
 
 ## Questions?
 

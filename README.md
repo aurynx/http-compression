@@ -608,7 +608,7 @@ This library is designed to be AI-friendly with:
 - ✅ **Fail-fast** — errors are obvious and immediate
 - ✅ **Immutable value objects** — no side effects
 
-For a deeper, agent-focused walkthrough, see the AI Guide: [AI_GUIDE.md](./docs/AI_GUIDE.md). You can also use the structured hints in [`docs/ai.md`](./docs/ai.md) and the machine-readable schema [`docs/ai-tool.json`](./docs/ai-tool.json).
+For a deeper, agent-focused walkthrough, see the AI Guide: [AI_GUIDE.md](./docs/AI_GUIDE.md). You can also use the machine-readable schema [`docs/ai-manifest.json`](docs/ai-manifest.json).
 
 ### Common Patterns
 

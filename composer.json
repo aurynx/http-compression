@@ -67,8 +67,8 @@
     },
     "extra": {
         "ai": {
-            "tool": "docs/ai-tool.json",
-            "guide": "docs/ai.md"
+            "manifest": "docs/ai-manifest.json",
+            "guide": "docs/AI_GUIDE.md"
         }
     },
     "config": {

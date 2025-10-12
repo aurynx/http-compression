@@ -25,9 +25,34 @@ $result = CompressorFacade::once()
     ->data($html)
     ->withBrotli(11)
     ->compress();
+
+// Stream and save (large files)
+CompressorFacade::once()
+    ->file('large.json')
+    ->withGzip(6)
+    ->streamTo('large.json.gz', [
+        'overwritePolicy' => 'replace',
+        'allowCreateDirs' => true,
+    ]);
+
+// Multi-algorithm streaming save
+CompressorFacade::once()
+    ->data($payload)
+    ->withGzip(6)
+    ->tryBrotli(4) // optional
+    ->streamAllTo('dist', 'payload', [
+        'overwritePolicy' => 'replace',
+        'atomicAll' => true,
+    ]);
+
+// Soft variants (no-throw)
+$ok = CompressorFacade::once()
+    ->data($payload)
+    ->withGzip(6)
+    ->tryStreamTo('out.gz');
 ```
 
-> Note: saveTo() requires exactly one algorithm. For multiple algorithms, call ->compress() and pick data per algorithm.
+> Note: saveTo()/streamTo() require exactly one algorithm. For multiple algorithms use compress() and pick per algorithm, or streamAllTo() to write all outputs with per-algorithm extensions.
 
 ### Batch Compression
 
@@ -57,8 +82,10 @@ $result = CompressorFacade::make()
   if (!AlgorithmEnum::Brotli->isAvailable()) { /* fallback to Gzip */ }
   ```
 - Contracts: once()->data(...) has no side effects; operations are deterministic for the same input/level; empty input is allowed (output may be header-only but not empty). Batch with no inputs returns an empty CompressionResult (no throw).
-- Memory/streaming: In in-memory mode, exceeding maxBytes throws CompressionException (throws). Use ->toDir() or raise the limit.
-- Globs: Brace groups like *.{css,js} are expanded by the library and are portable. Recursive ** is not guaranteed across platforms — prefer several addGlob() calls for explicit patterns.
+- Memory/streaming:
+  - In-memory: exceeding maxBytes throws CompressionException; increase the limit or choose a different mode.
+  - Streaming: prefer streamTo()/streamAllTo() for large outputs — atomic tmp+rename, overwrite policies, optional soft variants tryStream*.
+- Globs: Brace groups like *.{css,js} are expanded by the library (portable). Recursive ** is not guaranteed across platforms — prefer several addGlob() calls for explicit patterns.
 - Recommended config style (for agents): ItemConfig::create()->withGzip(...)[->withBrotli(...)]...->build(). Static AlgorithmSet factories exist, but prefer the builder in TL;DR.
 
 ---
@@ -69,11 +96,14 @@ $result = CompressorFacade::make()
 |-----------------|--------------|
 | Compress one file | `CompressorFacade::once()->file($path)->withGzip()->saveTo($out)` |
 | Compress data in memory | `CompressorFacade::once()->data($str)->withBrotli()->compress()` |
+| Stream and save large file | `CompressorFacade::once()->file($p)->withGzip()->streamTo($out)` |
+| Stream multi-alg outputs | `CompressorFacade::once()->data($str)->withGzip()->tryBrotli()->streamAllTo($dir, $base)` |
+| Soft (no-throw) streaming | `->tryStreamTo($out)` / `->tryStreamAllTo($dir, $base)` |
 | Compress multiple files | `CompressorFacade::make()->addFile($p1)->addFile($p2)->...->compress()` |
 | Compress directory | `CompressorFacade::make()->addGlob('dir/*.ext')->...->compress()` |
-| Custom source      | `CompressorFacade::make()->addFrom($provider)` → see [Providers](#providers) |
+| Custom source | `CompressorFacade::make()->addFrom($provider)` → see [Providers](#providers) |
 | Skip images/videos | `->skipAlreadyCompressed()` |
-| Multiple algorithms (single run) | `CompressorFacade::once()->data($str)->withGzip(9)->withBrotli(11)->compress(); $result->getData(AlgorithmEnum::Gzip)` |
+| Multiple algorithms (single run) | `once()->data(...)->withGzip()->withBrotli()->compress(); $result->getData(AlgorithmEnum::Gzip)` |
 | Save to directory | `->toDir('./output', keepStructure: true)` |
 | Keep in memory | `->inMemory(maxBytes: 10_000_000)` |
 | Stop on first error | `->failFast(true)` (default) |
@@ -543,22 +573,23 @@ CompressorFacade::make()
 ### 3. Use streaming for large files
 
 ```php
-// For files > 5MB
-$result = CompressorFacade::make()
-    ->addFile('large.json')
-    ->withDefaultConfig(ItemConfig::create()->withGzip(6)->build())
-    ->inMemory(maxBytes: 100_000_000)  // 100MB limit
-    ->compress();
+// Prefer direct streaming save to avoid large in-memory buffers
+CompressorFacade::once()
+    ->file('large.json')
+    ->withGzip(6)
+    ->streamTo('large.json.gz', [
+        'overwritePolicy' => 'replace',
+    ]);
 
-// Stream output
-$result->first()->read(AlgorithmEnum::Gzip, function (string $chunk) {
-    file_put_contents('output.gz', $chunk, FILE_APPEND);
-});
-
-// Contract:
-// - Callback signature: fn(string $chunk): void; chunks are ~64KB by default (implementation-defined).
-// - Exceptions thrown inside the callback stop streaming and are bubbled up.
-// - Exceeding the in-memory limit throws CompressionException unless you raise the limit or use ->toDir().
+// Or write all configured outputs at once
+CompressorFacade::once()
+    ->data(file_get_contents('large.txt'))
+    ->withGzip(6)
+    ->tryBrotli(4)
+    ->streamAllTo('dist', 'large', [
+        'overwritePolicy' => 'replace',
+        'atomicAll' => true,
+    ]);
 ```
 
 ---

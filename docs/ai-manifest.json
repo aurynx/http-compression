@@ -5,7 +5,7 @@
   "package_id": "aurynx/http-compression",
   "install": "composer require aurynx/http-compression",
   "repository": "https://github.com/aurynx/http-compression",
-  "usage_modes": ["dynamic-response", "build-time-precompression"],
+  "usage_modes": ["dynamic-response", "build-time-precompression", "streaming-precompression"],
   "entrypoints": [
     {
       "namespace": "Aurynx\\HttpCompression",
@@ -42,7 +42,17 @@
         { "name": "withZstd", "params": ["int $level = 3"], "returns": "self" },
         { "name": "withAlgorithm", "params": ["AlgorithmEnum $algo", "int $level"], "returns": "self" },
         { "name": "compress", "params": [], "returns": "CompressionItemResult" },
-        { "name": "saveTo", "params": ["string $path"], "returns": "void", "note": "Requires exactly one algorithm" }
+        { "name": "saveTo", "params": ["string $path"], "returns": "void", "note": "Requires exactly one algorithm" },
+        { "name": "saveAllTo", "params": ["string $directory", "string $basename", "array $options = []"], "returns": "void" },
+        { "name": "saveCompressed", "params": ["array $options = []"], "returns": "void", "note": "Requires file() input" },
+        { "name": "streamTo", "params": ["string $path", "array $options = []"], "returns": "void" },
+        { "name": "streamAllTo", "params": ["string $directory", "string $basename", "array $options = []"], "returns": "void" },
+        { "name": "trySaveTo", "params": ["string $path"], "returns": "bool" },
+        { "name": "trySaveAllTo", "params": ["string $directory", "string $basename", "array $options = []"], "returns": "bool" },
+        { "name": "trySaveCompressed", "params": ["array $options = []"], "returns": "bool" },
+        { "name": "tryStreamTo", "params": ["string $path", "array $options = []"], "returns": "bool" },
+        { "name": "tryStreamAllTo", "params": ["string $directory", "string $basename", "array $options = []"], "returns": "bool" },
+        { "name": "getLastError", "params": [], "returns": "?CompressionException" }
       ]
     }
   ],
@@ -64,7 +74,7 @@
       "brotli": "ext-brotli (optional)",
       "zstd": "ext-zstd (optional)"
     },
-    "memory": "Use inMemory(maxBytes) or ItemConfig::create()->limitBytes() to guard large payloads"
+    "memory": "Use inMemory(maxBytes) to guard large payloads; for large outputs prefer streamTo()/streamAllTo()"
   },
   "artifacts": {
     "examples": [
@@ -96,13 +106,16 @@
       "name": "Precompress static files for nginx/apache",
       "steps": [
         "Use CompressorFacade::make()",
-        "addGlob with patterns (brace expansion supported)",
+        "addGlob with portable patterns (brace expansion supported internally)",
         "withDefaultConfig(ItemConfig::create()->withGzip(9)->withBrotli(11)->build())",
         "skipAlreadyCompressed()",
         "toDir(keepStructure: true)",
         "compress"
       ],
-      "paths": ["public/**/*.html", "public/**/*.css", "public/**/*.js"]
+      "notes": [
+        "Avoid relying on recursive **; prefer explicit patterns per directory level"
+      ],
+      "paths": ["public/*.html", "public/*.css", "public/*.js"]
     },
     {
       "name": "Batch with graceful mode",
@@ -119,7 +132,7 @@
   ],
   "safety": [
     "Use failFast(false) for user-facing paths to collect errors",
-    "Use limitBytes()/inMemory() limits for large payloads",
+    "Use limitBytes()/inMemory() limits for large payloads; prefer streamTo()/streamAllTo() for big outputs",
     "Optional algorithms require PHP extensions"
   ],
   "hints_for_agents": [
