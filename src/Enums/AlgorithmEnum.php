@@ -6,6 +6,9 @@ namespace Aurynx\HttpCompression\Enums;
 
 use Aurynx\HttpCompression\Attributes\AlgorithmAttribute;
 use Aurynx\HttpCompression\CompressionException;
+use Aurynx\HttpCompression\Support\AttributeCache;
+use ReflectionException;
+use Throwable;
 
 enum AlgorithmEnum: string
 {
@@ -44,30 +47,11 @@ enum AlgorithmEnum: string
 
     private function meta(): AlgorithmAttribute
     {
-        /** @var array<string, AlgorithmAttribute> $cache */
-        static $cache = [];
-
-        $key = $this->value;
-
-        if (isset($cache[$key])) {
-            /** @var AlgorithmAttribute $cached */
-            $cached = $cache[$key];
-
-            return $cached;
+        try {
+            return AttributeCache::algorithmForEnumCase(self::class, $this->name);
+        } catch (Throwable $e) {
+            throw new CompressionException("Missing AlgorithmAttribute for {$this->name}", 0, $e);
         }
-
-        $ref = new \ReflectionEnumUnitCase(self::class, $this->name);
-        $attrs = $ref->getAttributes(AlgorithmAttribute::class);
-
-        if ($attrs === []) {
-            throw new CompressionException("Missing AlgorithmAttribute for {$this->name}");
-        }
-
-        /** @var AlgorithmAttribute $meta */
-        $meta = $attrs[0]->newInstance();
-        $cache[$key] = $meta;
-
-        return $meta;
     }
 
     public function isAvailable(): bool
@@ -138,5 +122,16 @@ enum AlgorithmEnum: string
     public function isCpuIntensive(): bool
     {
         return $this->meta()->cpuIntensive;
+    }
+
+    /**
+     * Warm up attribute cache for all algorithm cases.
+     *
+     * Eliminates cold start spikes in long-running workers (Swoole/RoadRunner).
+     * Call this method during worker initialization.
+     */
+    public static function warmUpCache(): void
+    {
+        AttributeCache::warmUp(self::class);
     }
 }

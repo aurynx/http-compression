@@ -14,10 +14,11 @@ use Aurynx\HttpCompression\DTO\CompressionResultDto;
 use Aurynx\HttpCompression\Enums\AlgorithmEnum;
 use Aurynx\HttpCompression\Enums\ErrorCodeEnum;
 use Aurynx\HttpCompression\Enums\OutputModeEnum;
+use Aurynx\HttpCompression\Support\AttributeCache;
 use Aurynx\HttpCompression\ValueObjects\CompressionInput;
 use Aurynx\HttpCompression\ValueObjects\ItemConfig;
 use Aurynx\HttpCompression\ValueObjects\OutputConfig;
-use ReflectionClass;
+use ReflectionException;
 use Throwable;
 
 /**
@@ -194,23 +195,21 @@ final class CompressionEngine
 
     /**
      * Check if output mode is allowed for a given input type using OutputFormatAttribute
+    /**
+     * Check if output mode is allowed for a given input type using OutputFormatAttribute
      */
     private function isOutputModeAllowed(CompressionInput $input, OutputModeEnum $mode): bool
     {
-        $ref = new ReflectionClass($input);
-        $attrs = $ref->getAttributes(OutputFormatAttribute::class);
+        $attr = AttributeCache::forClassOutputFormat($input::class);
 
-        if ($attrs === []) {
+        if ($attr === null) {
             // No attribute means no restriction
             return true;
         }
 
-        /** @var OutputFormatAttribute $attr */
-        $attr = $attrs[0]->newInstance();
-
         return array_any(
             $attr->allowedModes,
-            static fn ($allowed): bool => $allowed === $mode,
+            static fn (OutputModeEnum $allowed): bool => $allowed === $mode,
         );
     }
 }
