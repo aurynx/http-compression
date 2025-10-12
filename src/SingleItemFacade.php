@@ -174,7 +174,7 @@ final class SingleItemFacade
             );
         }
 
-        // Compress
+        // Compress (in-memory mode, fail-fast)
         $result = $this->executeCompression();
 
         // Extract the only algorithm enum from the first pair [AlgorithmEnum, level]
@@ -316,6 +316,231 @@ final class SingleItemFacade
     }
 
     /**
+     * Stream-compress a SINGLE algorithm and write directly to a file via tmp+rename.
+     * Disables in-memory size limit checks by using OutputConfig::stream().
+     *
+     * Options:
+     * - overwritePolicy: OverwritePolicyEnum|'fail'|'replace'|'skip' (default: 'replace')
+     * - allowCreateDirs: bool (default: true)
+     * - permissions: int|null
+     *
+     * @param array{overwritePolicy?:OverwritePolicyEnum|string,allowCreateDirs?:bool,permissions?:int|null} $options
+     * @throws CompressionException|Throwable
+     */
+    public function streamTo(string $path, array $options = []): void
+    {
+        $this->lastError = null;
+        $this->validateInput();
+        $this->validateConfig();
+
+        assert($this->config !== null);
+
+        $algorithms = $this->config->algorithms->toArray();
+        if (count($algorithms) !== 1) {
+            throw new CompressionException(
+                'streamTo() requires exactly one algorithm, got ' . count($algorithms) . '. ' .
+                'Use streamAllTo() for multiple algorithms.',
+            );
+        }
+
+        $policy = OverwritePolicyEnum::fromOption($options['overwritePolicy'] ?? OverwritePolicyEnum::Replace);
+        $allowCreateDirs = $options['allowCreateDirs'] ?? true;
+        $permissions = $options['permissions'] ?? null;
+
+        // Compress using streaming output mode (fail-fast)
+        $result = $this->compressWithOutput(OutputConfig::stream(), true);
+
+        [$algoEnum] = $algorithms[0];
+        $data = $result->getData($algoEnum);
+
+        try {
+            FileWriter::writeToPath(
+                path: $path,
+                data: $data,
+                policy: $policy,
+                permissions: $permissions,
+                allowCreateDirs: $allowCreateDirs,
+            );
+        } catch (CompressionException $e) {
+            $this->lastError = $e;
+            throw $e;
+        }
+    }
+
+    /**
+     * Stream-compress MULTIPLE algorithms and write all outputs to a directory via tmp+rename.
+     * Uses OutputConfig::stream() to avoid in-memory size checks.
+     *
+     * Options:
+     * - overwritePolicy: OverwritePolicyEnum|'fail'|'replace'|'skip' (default: 'fail')
+     * - atomicAll: bool (default: true)
+     * - allowCreateDirs: bool (default: true)
+     * - permissions: int|null
+     *
+     * @param array{overwritePolicy?:OverwritePolicyEnum|string,atomicAll?:bool,allowCreateDirs?:bool,permissions?:int|null} $options
+     * @throws CompressionException|Throwable
+     */
+    public function streamAllTo(string $directory, string $basename, array $options = []): void
+    {
+        $this->lastError = null;
+        $this->validateInput();
+        $this->validateConfig();
+
+        assert($this->config !== null);
+
+        $policy = OverwritePolicyEnum::fromOption($options['overwritePolicy'] ?? null);
+        $atomicAll = $options['atomicAll'] ?? true;
+        $allowCreateDirs = $options['allowCreateDirs'] ?? true;
+        $permissions = $options['permissions'] ?? null;
+
+        // Compress with non-fail-fast to collect per-algorithm errors (stream mode)
+        $result = $this->compressWithOutput(OutputConfig::stream(), false);
+
+        $pairs = $this->config->algorithms->toArray();
+        $entries = [];
+
+        foreach ($pairs as [$algo, $_level]) {
+            if (!$result->has($algo)) {
+                $isOptional = $this->optionalAlgorithms[$algo->value] ?? false;
+                $err = $result->getError($algo);
+
+                if ($isOptional) {
+                    continue;
+                }
+
+                $reason = $err?->getMessage() ?? 'unknown error';
+                $this->lastError = new CompressionException(
+                    "Compression failed for required {$algo->value}: {$reason}",
+                    0,
+                    $err instanceof Throwable ? $err : null,
+                    [ 'algorithm' => $algo->value ],
+                );
+                throw $this->lastError;
+            }
+
+            $entries[] = [
+                'algo' => $algo,
+                'data' => $result->getData($algo),
+            ];
+        }
+
+        try {
+            FileWriter::writeAll(
+                directory: $directory,
+                basename: $basename,
+                entries: $entries,
+                policy: $policy,
+                atomicAll: $atomicAll,
+                permissions: $permissions,
+                allowCreateDirs: $allowCreateDirs,
+            );
+        } catch (CompressionException $e) {
+            $this->lastError = $e;
+            throw $e;
+        }
+    }
+
+    /**
+     * Try variants: return false instead of throwing and capture last error
+     */
+    public function trySaveTo(string $path): bool
+    {
+        try {
+            $this->saveTo($path);
+
+            return true;
+        } catch (CompressionException $e) {
+            $this->lastError = $e;
+
+            return false;
+        } catch (Throwable $e) {
+            $this->lastError = new CompressionException($e->getMessage(), 0, $e);
+
+            return false;
+        }
+    }
+
+    /**
+     * @param array{overwritePolicy?:OverwritePolicyEnum|string,atomicAll?:bool,allowCreateDirs?:bool,permissions?:int|null} $options
+     */
+    public function trySaveAllTo(string $directory, string $basename, array $options = []): bool
+    {
+        try {
+            $this->saveAllTo($directory, $basename, $options);
+
+            return true;
+        } catch (CompressionException $e) {
+            $this->lastError = $e;
+
+            return false;
+        } catch (Throwable $e) {
+            $this->lastError = new CompressionException($e->getMessage(), 0, $e);
+
+            return false;
+        }
+    }
+
+    /**
+     * @param array{overwritePolicy?:OverwritePolicyEnum|string,atomicAll?:bool,allowCreateDirs?:bool,permissions?:int|null} $options
+     */
+    public function trySaveCompressed(array $options = []): bool
+    {
+        try {
+            $this->saveCompressed($options);
+
+            return true;
+        } catch (CompressionException $e) {
+            $this->lastError = $e;
+
+            return false;
+        } catch (Throwable $e) {
+            $this->lastError = new CompressionException($e->getMessage(), 0, $e);
+
+            return false;
+        }
+    }
+
+    /**
+     * Try variants for streaming methods: return false instead of throwing and capture last error
+     */
+    public function tryStreamTo(string $path, array $options = []): bool
+    {
+        try {
+            $this->streamTo($path, $options);
+
+            return true;
+        } catch (CompressionException $e) {
+            $this->lastError = $e;
+
+            return false;
+        } catch (Throwable $e) {
+            $this->lastError = new CompressionException($e->getMessage(), 0, $e);
+
+            return false;
+        }
+    }
+
+    /**
+     * @param array{overwritePolicy?:OverwritePolicyEnum|string,atomicAll?:bool,allowCreateDirs?:bool,permissions?:int|null} $options
+     */
+    public function tryStreamAllTo(string $directory, string $basename, array $options = []): bool
+    {
+        try {
+            $this->streamAllTo($directory, $basename, $options);
+
+            return true;
+        } catch (CompressionException $e) {
+            $this->lastError = $e;
+
+            return false;
+        } catch (Throwable $e) {
+            $this->lastError = new CompressionException($e->getMessage(), 0, $e);
+
+            return false;
+        }
+    }
+
+    /**
      * Validate that input is set
      *
      * @throws CompressionException
@@ -344,7 +569,7 @@ final class SingleItemFacade
     }
 
     /**
-     * Execute compression with configurable failFast
+     * Execute compression with configurable failFast (in-memory mode)
      *
      * @throws Throwable
      */
@@ -353,8 +578,21 @@ final class SingleItemFacade
         assert($this->input !== null);
         assert($this->config !== null);
 
+        return $this->compressWithOutput(OutputConfig::inMemory(), $failFast);
+    }
+
+    /**
+     * Execute compression with explicit OutputConfig
+     *
+     * @throws Throwable
+     */
+    private function compressWithOutput(OutputConfig $outputConfig, bool $failFast): CompressionItemResult
+    {
+        assert($this->input !== null);
+        assert($this->config !== null);
+
         $engine = new CompressionEngine(
-            outputConfig: OutputConfig::inMemory(),
+            outputConfig: $outputConfig,
             failFast: $failFast,
         );
 
@@ -399,45 +637,16 @@ final class SingleItemFacade
             );
         }
 
-        // Track optional/required flag
-        $this->optionalAlgorithms[$algo->value] = !$required;
+        // Track optionality
+        $this->optionalAlgorithms[$algo->value] = $this->optionalAlgorithms[$algo->value] ?? false;
+        if ($required === false) {
+            $this->optionalAlgorithms[$algo->value] = true;
+        }
     }
 
     /**
-     * Try-variants that don't throw; use getLastError() to inspect failure.
+     * Expose last error for try* methods
      */
-    public function trySaveTo(string $path): bool
-    {
-        try {
-            $this->saveTo($path);
-
-            return true;
-        } catch (CompressionException) {
-            return false;
-        }
-    }
-
-    public function trySaveAllTo(string $directory, string $basename, array $options = []): bool
-    {
-        try {
-            $this->saveAllTo($directory, $basename, $options);
-
-            return true;
-        } catch (CompressionException) {
-            return false;
-        }
-    }
-
-    public function trySaveCompressed(array $options = []): bool
-    {
-        try {
-            $this->saveCompressed($options);
-
-            return true;
-        } catch (CompressionException) {
-            return false;
-        }
-    }
 
     public function getLastError(): ?CompressionException
     {

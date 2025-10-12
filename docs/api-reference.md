@@ -55,9 +55,13 @@ Simplified facade for one-off compression.
     - allowCreateDirs: bool (default true) — create directory if missing
     - permissions: int|null — chmod after successful rename
 - saveCompressed(array $options = []): void — save next to source file (requires file() input)
+- streamTo(string $path, array $options = []): void — like saveTo(), but uses streaming mode to avoid in-memory limits; options: overwritePolicy (default 'replace'), allowCreateDirs (default true), permissions
+- streamAllTo(string $directory, string $basename, array $options = []): void — like saveAllTo(), but uses streaming mode; options: overwritePolicy (default 'fail'), atomicAll (default true), allowCreateDirs (default true), permissions
 - trySaveTo(string $path): bool — returns false and sets getLastError() on failure
 - trySaveAllTo(string $directory, string $basename, array $options = []): bool
 - trySaveCompressed(array $options = []): bool
+- tryStreamTo(string $path, array $options = []): bool — soft variant of streamTo()
+- tryStreamAllTo(string $directory, string $basename, array $options = []): bool — soft variant of streamAllTo()
 - getLastError(): ?CompressionException
 
 ---
@@ -184,7 +188,9 @@ Per-item data + metrics.
 - getStream(AlgorithmEnum $algo): resource
 - read(AlgorithmEnum $algo, callable $consumer): void
 - getSize(AlgorithmEnum $algo): int
-- getRatio(AlgorithmEnum $algo): float
+- getRatio(AlgorithmEnum $algo): float — compressed/original
+- getSavingRatio(AlgorithmEnum $algo): float — saving share in [0..1]
+- getCompressionPercent(AlgorithmEnum $algo, int $precision = 0): string — e.g. "48%" or "48.2%"
 - getCompressionTimeMs(AlgorithmEnum $algo): float
 - getError(AlgorithmEnum $algo): ?Throwable
 - getErrors(): array<string, Throwable>
