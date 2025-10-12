@@ -16,7 +16,7 @@ class CompressionException extends RuntimeException
     /**
      * @param array<string, mixed> $context
      */
-    public function __construct(string $message = "", int $code = 0, ?Throwable $previous = null, array $context = [])
+    public function __construct(string $message = '', int $code = 0, ?Throwable $previous = null, array $context = [])
     {
         parent::__construct($message, $code, $previous);
         $this->context = $context;
@@ -67,6 +67,12 @@ class CompressionException extends RuntimeException
 
     public function getErrorCode(): ?ErrorCodeEnum
     {
-        return ErrorCodeEnum::tryFrom($this->code);
+        $code = $this->code;
+
+        if (!is_int($code) && !is_string($code)) {
+            return null;
+        }
+
+        return ErrorCodeEnum::tryFrom($code);
     }
 }

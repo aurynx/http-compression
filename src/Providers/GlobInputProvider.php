@@ -35,8 +35,10 @@ final class GlobInputProvider implements InputProviderInterface
         $patterns = self::expandBracePatterns($this->pattern);
 
         $files = [];
+
         foreach ($patterns as $pattern) {
             $matches = glob($pattern); // default flags
+
             if ($matches !== false) {
                 // Avoid array_merge in loops — push with unpacking for scalars
                 array_push($files, ...$matches);
@@ -78,7 +80,7 @@ final class GlobInputProvider implements InputProviderInterface
 
             $inputs[] = new FileInput(
                 id: $this->generateFileId($realPath),
-                path: $realPath
+                path: $realPath,
             );
         }
 
@@ -102,6 +104,7 @@ final class GlobInputProvider implements InputProviderInterface
     private static function expandBracePatterns(string $pattern): array
     {
         $openPos = strpos($pattern, '{');
+
         if ($openPos === false) {
             return [$pattern];
         }
@@ -110,14 +113,18 @@ final class GlobInputProvider implements InputProviderInterface
         $depth = 0;
         $closePos = null;
         $len = strlen($pattern);
+
         for ($i = $openPos; $i < $len; $i++) {
             $ch = $pattern[$i];
+
             if ($ch === '{') {
                 $depth++;
             } elseif ($ch === '}') {
                 $depth--;
+
                 if ($depth === 0) {
                     $closePos = $i;
+
                     break;
                 }
             }
@@ -135,6 +142,7 @@ final class GlobInputProvider implements InputProviderInterface
         $options = self::splitBraceOptions($inside);
 
         $expanded = [];
+
         foreach ($options as $option) {
             // Recurse — suffix may contain more brace groups
             foreach (self::expandBracePatterns($prefix . $option . $suffix) as $p) {
@@ -157,8 +165,10 @@ final class GlobInputProvider implements InputProviderInterface
         $buf = '';
         $depth = 0;
         $len = strlen($inside);
+
         for ($i = 0; $i < $len; $i++) {
             $ch = $inside[$i];
+
             if ($ch === '{') {
                 $depth++;
                 $buf .= $ch;
@@ -172,6 +182,7 @@ final class GlobInputProvider implements InputProviderInterface
                 $buf .= $ch;
             }
         }
+
         if ($buf !== '') {
             $parts[] = $buf;
         }

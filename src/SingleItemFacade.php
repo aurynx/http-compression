@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Aurynx\HttpCompression;
 
+use Aurynx\HttpCompression\Enums\AlgorithmEnum;
+use Aurynx\HttpCompression\Enums\OverwritePolicyEnum;
 use Aurynx\HttpCompression\Results\CompressionItemResult;
+use Aurynx\HttpCompression\Support\FileWriter;
 use Aurynx\HttpCompression\ValueObjects\AlgorithmSet;
 use Aurynx\HttpCompression\ValueObjects\CompressionInput;
 use Aurynx\HttpCompression\ValueObjects\DataInput;
 use Aurynx\HttpCompression\ValueObjects\FileInput;
 use Aurynx\HttpCompression\ValueObjects\ItemConfig;
 use Aurynx\HttpCompression\ValueObjects\OutputConfig;
-use Aurynx\HttpCompression\Enums\AlgorithmEnum;
-use Aurynx\HttpCompression\Enums\OverwritePolicyEnum;
-use Aurynx\HttpCompression\Support\FileWriter;
 use Throwable;
 
 /**
@@ -39,6 +39,7 @@ final class SingleItemFacade
 {
     private ?CompressionInput $input = null;
     private ?ItemConfig $config = null;
+
     /** @var array<string, bool> Map of algo->value => optional? */
     private array $optionalAlgorithms = [];
     private ?CompressionException $lastError = null;
@@ -192,6 +193,7 @@ final class SingleItemFacade
             );
         } catch (CompressionException $e) {
             $this->lastError = $e;
+
             throw $e;
         }
     }
@@ -251,19 +253,20 @@ final class SingleItemFacade
         foreach ($pairs as [$algo, $_level]) {
             if (!$result->has($algo)) {
                 $isOptional = $this->optionalAlgorithms[$algo->value] ?? false;
-                $err = $result->getError($algo);
+                $error = $result->getError($algo);
 
                 if ($isOptional) {
                     continue; // skip optional failures
                 }
 
-                $reason = $err?->getMessage() ?? 'unknown error';
+                $reason = $error?->getMessage() ?? 'unknown error';
                 $this->lastError = new CompressionException(
                     "Compression failed for required {$algo->value}: {$reason}",
                     0,
-                    $err instanceof Throwable ? $err : null,
+                    $error instanceof Throwable ? $error : null,
                     [ 'algorithm' => $algo->value ],
                 );
+
                 throw $this->lastError;
             }
 
@@ -286,6 +289,7 @@ final class SingleItemFacade
             );
         } catch (CompressionException $e) {
             $this->lastError = $e;
+
             throw $e;
         }
     }
@@ -332,39 +336,45 @@ final class SingleItemFacade
         $this->lastError = null;
         $this->validateInput();
         $this->validateConfig();
-
         assert($this->config !== null);
 
         $algorithms = $this->config->algorithms->toArray();
+
         if (count($algorithms) !== 1) {
             throw new CompressionException(
                 'streamTo() requires exactly one algorithm, got ' . count($algorithms) . '. ' .
                 'Use streamAllTo() for multiple algorithms.',
             );
         }
-
         $policy = OverwritePolicyEnum::fromOption($options['overwritePolicy'] ?? OverwritePolicyEnum::Replace);
         $allowCreateDirs = $options['allowCreateDirs'] ?? true;
         $permissions = $options['permissions'] ?? null;
 
-        // Compress using streaming output mode (fail-fast)
-        $result = $this->compressWithOutput(OutputConfig::stream(), true);
+        FileWriter::writeToPathWithSink(
+            path: $path,
+            policy: $policy,
+            permissions: $permissions,
+            allowCreateDirs: $allowCreateDirs,
+            /** @param resource $sink */
+            producer: function ($sink): void {
+                assert($this->input !== null);
+                assert($this->config !== null);
 
-        [$algoEnum] = $algorithms[0];
-        $data = $result->getData($algoEnum);
+                /** @var resource $sink */
+                assert(is_resource($sink));
 
-        try {
-            FileWriter::writeToPath(
-                path: $path,
-                data: $data,
-                policy: $policy,
-                permissions: $permissions,
-                allowCreateDirs: $allowCreateDirs,
-            );
-        } catch (CompressionException $e) {
-            $this->lastError = $e;
-            throw $e;
-        }
+                $engine = new CompressionEngine(
+                    outputConfig: OutputConfig::stream(),
+                    failFast: true,
+                );
+
+                $pairs = $this->config->algorithms->toArray();
+                [$algoEnum, $level] = $pairs[0];
+                $engine->compressItemToSinks($this->input, new ItemConfig(AlgorithmSet::from([[$algoEnum, $level]])), [
+                    $algoEnum->value => $sink,
+                ]);
+            },
+        );
     }
 
     /**
@@ -385,7 +395,6 @@ final class SingleItemFacade
         $this->lastError = null;
         $this->validateInput();
         $this->validateConfig();
-
         assert($this->config !== null);
 
         $policy = OverwritePolicyEnum::fromOption($options['overwritePolicy'] ?? null);
@@ -393,50 +402,150 @@ final class SingleItemFacade
         $allowCreateDirs = $options['allowCreateDirs'] ?? true;
         $permissions = $options['permissions'] ?? null;
 
-        // Compress with non-fail-fast to collect per-algorithm errors (stream mode)
-        $result = $this->compressWithOutput(OutputConfig::stream(), false);
-
         $pairs = $this->config->algorithms->toArray();
-        $entries = [];
+        $targets = [];
 
         foreach ($pairs as [$algo, $_level]) {
-            if (!$result->has($algo)) {
-                $isOptional = $this->optionalAlgorithms[$algo->value] ?? false;
-                $err = $result->getError($algo);
-
-                if ($isOptional) {
-                    continue;
-                }
-
-                $reason = $err?->getMessage() ?? 'unknown error';
-                $this->lastError = new CompressionException(
-                    "Compression failed for required {$algo->value}: {$reason}",
-                    0,
-                    $err instanceof Throwable ? $err : null,
-                    [ 'algorithm' => $algo->value ],
-                );
-                throw $this->lastError;
-            }
-
-            $entries[] = [
-                'algo' => $algo,
-                'data' => $result->getData($algo),
-            ];
+            $targets[] = ['algo' => $algo, 'target' => $basename . '.' . $algo->getExtension()];
         }
 
-        try {
-            FileWriter::writeAll(
-                directory: $directory,
-                basename: $basename,
-                entries: $entries,
-                policy: $policy,
-                atomicAll: $atomicAll,
-                permissions: $permissions,
-                allowCreateDirs: $allowCreateDirs,
+        FileWriter::writeAllWithSinks(
+            directory: $directory,
+            basename: $basename,
+            targets: $targets,
+            policy: $policy,
+            atomicAll: $atomicAll,
+            permissions: $permissions,
+            allowCreateDirs: $allowCreateDirs,
+            /** @param array<string, resource> $sinks */
+            producer: function (array $sinks): void {
+                assert($this->input !== null);
+                assert($this->config !== null);
+
+                /** @var array<string, resource> $typedSinks */
+                $typedSinks = $sinks;
+
+                $engine = new CompressionEngine(
+                    outputConfig: OutputConfig::stream(),
+                    failFast: false,
+                );
+
+                $engine->compressItemToSinks($this->input, $this->config, $typedSinks);
+            },
+        );
+    }
+
+    /**
+     * Stream a SINGLE algorithm into a callback consumer.
+     * Callback receives compressed chunks: function(string $chunk): void
+     *
+     * @param callable(string):void $consumer
+     * @throws CompressionException|Throwable
+     */
+    public function sendToCallback(callable $consumer): void
+    {
+        $this->lastError = null;
+        $this->validateInput();
+        $this->validateConfig();
+        assert($this->config !== null);
+
+        $pairs = $this->config->algorithms->toArray();
+
+        if (count($pairs) !== 1) {
+            throw new CompressionException(
+                'sendToCallback() requires exactly one algorithm. Use sendAllToCallbacks() for multiple algorithms.',
             );
-        } catch (CompressionException $e) {
-            $this->lastError = $e;
-            throw $e;
+        }
+
+        [$algo, $level] = $pairs[0];
+
+        $engine = new CompressionEngine(
+            outputConfig: OutputConfig::stream(),
+            failFast: true,
+        );
+
+        $input = $this->input;
+        assert($input instanceof CompressionInput);
+
+        $engine->compressItemToCallbacks(
+            input: $input,
+            config: new ItemConfig(AlgorithmSet::from([[ $algo, $level ]])),
+            callbacks: [ $algo->value => $consumer ],
+        );
+    }
+
+    /**
+     * Stream MULTIPLE algorithms into per-algorithm callbacks.
+     * Keys of $consumers must be algorithm values (e.g., 'gzip', 'br', 'zst').
+     * Optional algorithms without a consumer are skipped; required ones must be provided and succeed.
+     *
+     * @param array<string, callable(string):void> $consumers
+     * @throws CompressionException|Throwable
+     */
+    public function sendAllToCallbacks(array $consumers): void
+    {
+        $this->lastError = null;
+        $this->validateInput();
+        $this->validateConfig();
+        assert($this->config !== null);
+
+        $pairs = $this->config->algorithms->toArray();
+        $filtered = [];
+        $callbacks = [];
+
+        foreach ($pairs as [$algo, $level]) {
+            $key = $algo->value;
+            $has = array_key_exists($key, $consumers);
+            $isOptional = $this->optionalAlgorithms[$key] ?? false;
+
+            if ($has) {
+                $filtered[] = [ $algo, $level ];
+                $callbacks[$key] = $consumers[$key];
+            } elseif (!$isOptional) {
+                throw new CompressionException("Missing consumer callback for required algorithm: {$key}");
+            }
+        }
+
+        if (empty($filtered)) {
+            // Nothing to do
+            return;
+        }
+
+        $engine = new CompressionEngine(
+            outputConfig: OutputConfig::stream(),
+            failFast: false,
+        );
+
+        $input = $this->input;
+        assert($input instanceof CompressionInput);
+
+        $dto = $engine->compressItemToCallbacks(
+            input: $input,
+            config: new ItemConfig(AlgorithmSet::from($filtered)),
+            callbacks: $callbacks,
+        );
+
+        // Validate required algorithms succeeded
+        foreach ($filtered as [$algo, $_level]) {
+            $key = $algo->value;
+            $isOptional = $this->optionalAlgorithms[$key] ?? false;
+            $error = $dto->errors[$key] ?? null;
+            $size = $dto->compressedSizes[$key] ?? 0;
+
+            if ($error !== null || $size <= 0) {
+                if ($isOptional) {
+                    continue; // tolerate optional failures
+                }
+                $reason = $error instanceof Throwable ? $error->getMessage() : 'unknown error';
+                $this->lastError = new CompressionException(
+                    "Compression failed for required {$key}: {$reason}",
+                    0,
+                    $error instanceof Throwable ? $error : null,
+                    [ 'algorithm' => $key ],
+                );
+
+                throw $this->lastError;
+            }
         }
     }
 
@@ -502,6 +611,8 @@ final class SingleItemFacade
 
     /**
      * Try variants for streaming methods: return false instead of throwing and capture last error
+     *
+     * @param array{overwritePolicy?:OverwritePolicyEnum|string,allowCreateDirs?:bool,permissions?:int|null} $options
      */
     public function tryStreamTo(string $path, array $options = []): bool
     {
@@ -527,6 +638,46 @@ final class SingleItemFacade
     {
         try {
             $this->streamAllTo($directory, $basename, $options);
+
+            return true;
+        } catch (CompressionException $e) {
+            $this->lastError = $e;
+
+            return false;
+        } catch (Throwable $e) {
+            $this->lastError = new CompressionException($e->getMessage(), 0, $e);
+
+            return false;
+        }
+    }
+
+    /**
+     * Try variants for callback streaming: swallow errors and set lastError.
+     */
+    public function trySendToCallback(callable $consumer): bool
+    {
+        try {
+            $this->sendToCallback($consumer);
+
+            return true;
+        } catch (CompressionException $e) {
+            $this->lastError = $e;
+
+            return false;
+        } catch (Throwable $e) {
+            $this->lastError = new CompressionException($e->getMessage(), 0, $e);
+
+            return false;
+        }
+    }
+
+    /**
+     * @param array<string, callable(string):void> $consumers
+     */
+    public function trySendAllToCallbacks(array $consumers): bool
+    {
+        try {
+            $this->sendAllToCallbacks($consumers);
 
             return true;
         } catch (CompressionException $e) {
@@ -639,6 +790,7 @@ final class SingleItemFacade
 
         // Track optionality
         $this->optionalAlgorithms[$algo->value] = $this->optionalAlgorithms[$algo->value] ?? false;
+
         if ($required === false) {
             $this->optionalAlgorithms[$algo->value] = true;
         }

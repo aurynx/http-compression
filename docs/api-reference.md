@@ -57,11 +57,15 @@ Simplified facade for one-off compression.
 - saveCompressed(array $options = []): void — save next to source file (requires file() input)
 - streamTo(string $path, array $options = []): void — like saveTo(), but uses streaming mode to avoid in-memory limits; options: overwritePolicy (default 'replace'), allowCreateDirs (default true), permissions
 - streamAllTo(string $directory, string $basename, array $options = []): void — like saveAllTo(), but uses streaming mode; options: overwritePolicy (default 'fail'), atomicAll (default true), allowCreateDirs (default true), permissions
+- sendToCallback(callable $consumer): void — stream a single algorithm into a consumer callback: function(string $chunk): void
+- sendAllToCallbacks(array $consumers): void — stream multiple algorithms into per-algorithm callbacks; array<string, callable(string):void>
 - trySaveTo(string $path): bool — returns false and sets getLastError() on failure
 - trySaveAllTo(string $directory, string $basename, array $options = []): bool
 - trySaveCompressed(array $options = []): bool
 - tryStreamTo(string $path, array $options = []): bool — soft variant of streamTo()
-- tryStreamAllTo(string $directory, string $basename, array $options = []): bool — soft variant of streamAllTo()
+- tryStreamAllTo(string $directory, string $basename, array $ options = []): bool — soft variant of streamAllTo()
+- trySendToCallback(callable $consumer): bool — soft variant of sendToCallback()
+- trySendAllToCallbacks(array $consumers): bool — soft variant of sendAllToCallbacks()
 - getLastError(): ?CompressionException
 
 ---
@@ -147,6 +151,11 @@ Controls how existing files are handled by saveAllTo/saveCompressed.
 - AcceptEncoding::negotiate(string $header, AlgorithmEnum ...$available): ?AlgorithmEnum
   - Parses Accept-Encoding with q-factors and returns the best acceptable algorithm from the provided list.
   - Returns null to indicate identity (no compression) or if nothing acceptable.
+
+### Stream Wrappers
+- ReadableStream — thin wrapper over a readable stream resource (enforces readable mode)
+- WritableStream — thin wrapper over a writable stream resource (enforces writable mode)
+  - CompressionEngine::compressItemToSinks() accepts either native stream resources or WritableStream instances.
 
 ---
 

@@ -49,6 +49,7 @@ it('streamAllTo() writes all configured outputs to directory', function (): void
 
     // .br is optional
     $br = $dir . DIRECTORY_SEPARATOR . $basename . '.br';
+
     if (file_exists($br)) {
         expect(filesize($br))->toBeGreaterThan(0);
         @unlink($br);

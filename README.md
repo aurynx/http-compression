@@ -15,6 +15,7 @@
   <a href="#features">Features</a> •
   <a href="#use-cases">Use Cases</a> •
   <a href="#api-reference">API</a> •
+  <a href="./docs/advanced-usage.md">Advanced Usage</a> •
   <a href="./docs/AI_GUIDE.md">AI Guide</a>
 </p>
 
@@ -163,6 +164,50 @@ $result->first()->read(AlgorithmEnum::Gzip, function (string $chunk) {
     echo $chunk;  // Process in chunks
 });
 ```
+
+---
+
+### 🔌 Callback Streaming (no resources)
+
+Stream compressed data directly into callbacks without dealing with stream resources.
+
+Single algorithm (sendToCallback):
+
+```php
+use Aurynx\HttpCompression\CompressorFacade;
+
+$buffer = '';
+CompressorFacade::once()
+    ->data(str_repeat('hello ', 5000))
+    ->withGzip(6)
+    ->sendToCallback(function (string $chunk) use (&$buffer): void {
+        $buffer .= $chunk; // write to socket, PSR-7 body, etc.
+    });
+```
+
+Multiple algorithms (sendAllToCallbacks):
+
+```php
+use Aurynx\HttpCompression\CompressorFacade;
+
+$gz = '';
+CompressorFacade::once()
+    ->data('payload')
+    ->withGzip(6)      // required by default
+    ->tryBrotli(4)     // optional
+    ->sendAllToCallbacks([
+        'gzip' => static function (string $chunk) use (&$gz): void {
+            $gz .= $chunk;
+        },
+        // 'br' may be omitted when added via tryBrotli()
+    ]);
+```
+
+See more patterns and caveats in Advanced Usage:
+- Callback streaming (single/multi)
+- Low-level WritableStream wrapper
+
+👉 Read: ./docs/advanced-usage.md
 
 ---
 

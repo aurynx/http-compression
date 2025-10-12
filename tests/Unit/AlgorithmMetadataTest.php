@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Aurynx\HttpCompression\Support\AlgorithmMetadata;
 use Aurynx\HttpCompression\Enums\AlgorithmEnum;
+use Aurynx\HttpCompression\Support\AlgorithmMetadata;
 
 it('provides correct metadata for gzip', function () {
     $meta = AlgorithmMetadata::for(AlgorithmEnum::Gzip);

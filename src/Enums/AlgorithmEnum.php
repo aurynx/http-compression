@@ -7,7 +7,6 @@ namespace Aurynx\HttpCompression\Enums;
 use Aurynx\HttpCompression\Attributes\AlgorithmAttribute;
 use Aurynx\HttpCompression\CompressionException;
 use Aurynx\HttpCompression\Support\AttributeCache;
-use ReflectionException;
 use Throwable;
 
 enum AlgorithmEnum: string

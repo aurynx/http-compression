@@ -5,7 +5,12 @@
   "package_id": "aurynx/http-compression",
   "install": "composer require aurynx/http-compression",
   "repository": "https://github.com/aurynx/http-compression",
-  "usage_modes": ["dynamic-response", "build-time-precompression", "streaming-precompression"],
+  "usage_modes": [
+    "dynamic-response",
+    "build-time-precompression",
+    "streaming-precompression",
+    "callback-streaming"
+  ],
   "entrypoints": [
     {
       "namespace": "Aurynx\\HttpCompression",
@@ -47,11 +52,15 @@
         { "name": "saveCompressed", "params": ["array $options = []"], "returns": "void", "note": "Requires file() input" },
         { "name": "streamTo", "params": ["string $path", "array $options = []"], "returns": "void" },
         { "name": "streamAllTo", "params": ["string $directory", "string $basename", "array $options = []"], "returns": "void" },
+        { "name": "sendToCallback", "params": ["callable $consumer"], "returns": "void" },
+        { "name": "sendAllToCallbacks", "params": ["array $consumers"], "returns": "void" },
         { "name": "trySaveTo", "params": ["string $path"], "returns": "bool" },
         { "name": "trySaveAllTo", "params": ["string $directory", "string $basename", "array $options = []"], "returns": "bool" },
         { "name": "trySaveCompressed", "params": ["array $options = []"], "returns": "bool" },
         { "name": "tryStreamTo", "params": ["string $path", "array $options = []"], "returns": "bool" },
         { "name": "tryStreamAllTo", "params": ["string $directory", "string $basename", "array $options = []"], "returns": "bool" },
+        { "name": "trySendToCallback", "params": ["callable $consumer"], "returns": "bool" },
+        { "name": "trySendAllToCallbacks", "params": ["array $consumers"], "returns": "bool" },
         { "name": "getLastError", "params": [], "returns": "?CompressionException" }
       ]
     }
@@ -74,7 +83,7 @@
       "brotli": "ext-brotli (optional)",
       "zstd": "ext-zstd (optional)"
     },
-    "memory": "Use inMemory(maxBytes) to guard large payloads; for large outputs prefer streamTo()/streamAllTo()"
+    "memory": "Use inMemory(maxBytes) to guard large payloads; for large outputs prefer streamTo()/streamAllTo() or callback streaming via sendToCallback()/sendAllToCallbacks()"
   },
   "artifacts": {
     "examples": [
@@ -124,6 +133,18 @@
         "addFile/addGlob",
         "compress",
         "iterate CompressionResult and check isOk()/getFailureReason()"
+      ]
+    },
+    {
+      "name": "Stream compressed output to callbacks (single/multi)",
+      "steps": [
+        "For single: CompressorFacade::once()->data()->withGzip(6)->sendToCallback(fn(string $chunk) => ...) ",
+        "For multi: provide array<string, callable> to sendAllToCallbacks(['gzip' => fn(string $chunk)=>...])",
+        "Optional algorithms may be added via try* and omitted from consumers"
+      ],
+      "notes": [
+        "Consumers receive chunks in order; number of calls is not fixed",
+        "Required algorithms must have consumers and succeed, otherwise exception"
       ]
     }
   ],

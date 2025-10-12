@@ -97,6 +97,54 @@ $item->read(AlgorithmEnum::Gzip, function (string $chunk) use ($fp) {
 fclose($fp);
 ```
 
+## Callback streaming (single algorithm, no resources)
+
+Stream compressed data to a callback without dealing with stream resources:
+
+```php
+use Aurynx\HttpCompression\CompressorFacade;
+
+$buffer = '';
+CompressorFacade::once()
+    ->data(str_repeat('callback ', 5000))
+    ->withGzip(6)
+    ->sendToCallback(function (string $chunk) use (&$buffer): void {
+        $buffer .= $chunk; // or write to socket, PSR-7 body, etc.
+    });
+
+// $buffer now contains gzip-compressed data
+```
+
+## Callback streaming (multiple algorithms)
+
+Provide per-algorithm consumers; optional algorithms may be omitted:
+
+```php
+use Aurynx\HttpCompression\CompressorFacade;
+
+$gz = fopen('out.gz', 'wb');
+$brBuffer = '';
+
+CompressorFacade::once()
+    ->data(str_repeat('many ', 4000))
+    ->withGzip(6)      // required by default
+    ->tryBrotli(4)     // optional
+    ->sendAllToCallbacks([
+        'gzip' => static function (string $chunk) use ($gz): void {
+            fwrite($gz, $chunk);
+        },
+        // 'br' => static function (string $chunk) use (&$brBuffer): void { $brBuffer .= $chunk; },
+        // brotli consumer is optional because tryBrotli() was used
+    ]);
+
+fclose($gz);
+```
+
+Notes:
+- Required algorithms must have a corresponding consumer and must succeed; otherwise an exception is thrown.
+- Optional algorithms (added via try*) are skipped if not provided or if they fail.
+- Chunks may arrive in multiple callback invocations; their order is preserved.
+
 ## Check available algorithms
 
 ```php
@@ -172,4 +220,21 @@ $ok = CompressorFacade::make()
 if (!$ok) {
     throw new RuntimeException('Asset compression failed');
 }
+```
+
+### Low-Level Note: WritableStream wrapper
+
+If you call the engine directly, `CompressionEngine::compressItemToSinks()` accepts either native stream resources or `Support\WritableStream` instances:
+
+```php
+use Aurynx\HttpCompression\CompressionEngine;
+use Aurynx\HttpCompression\Support\WritableStream;
+use Aurynx\HttpCompression\ValueObjects\ItemConfig;
+use Aurynx\HttpCompression\ValueObjects\AlgorithmSet;
+
+$engine = new CompressionEngine(\Aurynx\HttpCompression\ValueObjects\OutputConfig::stream());
+$fp = fopen('out.gz', 'wb');
+$ws = WritableStream::fromResource($fp);
+
+$engine->compressItemToSinks($input, new ItemConfig(AlgorithmSet::gzip()), [ 'gzip' => $ws ]);
 ```

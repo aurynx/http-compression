@@ -24,6 +24,7 @@ final class AcceptEncoding
 
         // Consider explicit encodings with q>0, ordered by q desc
         $candidates = [];
+
         foreach ($prefs as $enc => $q) {
             if ($q <= 0.0 || $enc === 'identity' || $enc === '*') {
                 continue;
@@ -75,6 +76,7 @@ final class AcceptEncoding
     private static function parseHeader(string $header): array
     {
         $header = trim($header);
+
         if ($header === '') {
             return [];
         }
@@ -105,9 +107,11 @@ final class AcceptEncoding
         if (isset($semi[1]) && str_starts_with($semi[1], 'q=')) {
             $raw = substr($semi[1], 2);
             $val = is_numeric($raw) ? (float) $raw : 1.0;
+
             if ($val < 0.0) {
                 $val = 0.0;
             }
+
             if ($val > 1.0) {
                 $val = 1.0;
             }

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Aurynx\HttpCompression\Support;
 
 use Aurynx\HttpCompression\CompressionException;
-use Aurynx\HttpCompression\Enums\OverwritePolicyEnum;
 use Aurynx\HttpCompression\Enums\AlgorithmEnum;
+use Aurynx\HttpCompression\Enums\OverwritePolicyEnum;
 use Throwable;
 
 /**
@@ -44,6 +44,7 @@ final class FileWriter
             // Race-safe: if someone else created it, accept
             if (!$created && !is_dir($dir)) {
                 $parent = dirname($dir) ?: '.';
+
                 throw new CompressionException(
                     "Failed to create directory: {$dir}",
                     0,
@@ -93,7 +94,7 @@ final class FileWriter
         string $data,
         OverwritePolicyEnum $policy = OverwritePolicyEnum::Replace,
         ?int $permissions = null,
-        bool $allowCreateDirs = true
+        bool $allowCreateDirs = true,
     ): void {
         $dir = dirname($path);
         $file = basename($path);
@@ -109,6 +110,7 @@ final class FileWriter
             if ($policy->isSkip()) {
                 return; // keep existing
             }
+
             if ($policy === OverwritePolicyEnum::Fail) {
                 throw new CompressionException(
                     "Target already exists: {$target}",
@@ -122,6 +124,7 @@ final class FileWriter
         $tmp = $target . '.tmp.' . uniqid('', true);
 
         $bytes = @file_put_contents($tmp, $data, LOCK_EX);
+
         if ($bytes === false) {
             throw new CompressionException(
                 "Failed to write temp file: {$tmp}",
@@ -143,6 +146,7 @@ final class FileWriter
 
         if (!@rename($tmp, $target)) {
             @unlink($tmp);
+
             throw new CompressionException(
                 "Failed to move temp file to target: {$target}",
                 0,
@@ -174,7 +178,7 @@ final class FileWriter
         OverwritePolicyEnum $policy,
         bool $atomicAll = true,
         ?int $permissions = null,
-        bool $allowCreateDirs = true
+        bool $allowCreateDirs = true,
     ): void {
         // Validate basename to avoid path traversal and unexpected subdirs
         if ($basename === '' || $basename === '.' || $basename === '..' || str_contains($basename, '/') || str_contains($basename, '\\')) {
@@ -205,6 +209,7 @@ final class FileWriter
                     // skip writing this algorithm
                     continue;
                 }
+
                 if ($policy === OverwritePolicyEnum::Fail) {
                     throw new CompressionException(
                         "Target already exists: {$target}",
@@ -251,6 +256,7 @@ final class FileWriter
             foreach ($toWrite as $algo) {
                 $target = $finalTargets[$algo->value] ?? null;
                 $tmp = $tmpFiles[$algo->value] ?? null;
+
                 if ($target === null || $tmp === null) {
                     continue;
                 }
@@ -290,6 +296,7 @@ final class FileWriter
                 // Attempt to remove any partially written targets
                 foreach ($toWrite as $algo) {
                     $target = $finalTargets[$algo->value] ?? null;
+
                     if ($target !== null && file_exists($target)) {
                         @unlink($target);
                     }
@@ -297,6 +304,182 @@ final class FileWriter
             }
 
             throw $e; // rethrow
+        }
+    }
+
+    /**
+     * Create temp file for target and pass writable sink to producer for streaming write.
+     * Producer must write all data to $sink and return; on success the file is atomically moved into place.
+     */
+    public static function writeToPathWithSink(
+        string $path,
+        OverwritePolicyEnum $policy,
+        ?int $permissions,
+        bool $allowCreateDirs,
+        callable $producer,
+    ): void {
+        $dir = dirname($path);
+        $file = basename($path);
+
+        if ($file === '' || $file === '.' || $file === '..') {
+            throw new CompressionException('Invalid target filename for writeToPathWithSink: ' . $path);
+        }
+        $realDir = self::prepareOutputDirectory($dir, $allowCreateDirs);
+        $target = $realDir . DIRECTORY_SEPARATOR . $file;
+
+        if (file_exists($target)) {
+            if ($policy->isSkip()) {
+                return;
+            }
+
+            if ($policy === OverwritePolicyEnum::Fail) {
+                throw new CompressionException("Target already exists: {$target}", 0, null, ['path' => $target]);
+            }
+        }
+
+        $tmp = $target . '.tmp.' . uniqid('', true);
+        $sink = fopen($tmp, 'w+b');
+
+        if ($sink === false) {
+            throw new CompressionException('Failed to create temporary sink: ' . $tmp, 0, null, ['path' => $tmp]);
+        }
+
+        try {
+            $producer($sink); // write into sink
+        } catch (Throwable $e) {
+            fclose($sink);
+            @unlink($tmp);
+
+            throw $e;
+        }
+
+        $bytes = ftell($sink);
+        fclose($sink);
+
+        if (file_exists($target) && $policy->isReplace()) {
+            @unlink($target);
+        }
+
+        if (!@rename($tmp, $target)) {
+            @unlink($tmp);
+
+            throw new CompressionException('Failed to move temp file to target: ' . $target, 0, null, ['path' => $target]);
+        }
+
+        if (is_int($permissions)) {
+            @chmod($target, $permissions);
+        }
+    }
+
+    /**
+     * Prepare tmp sinks for multiple targets, run producer with map algo->sink, and atomically move all.
+     * @param array<int, array{algo: AlgorithmEnum, target: string}> $targets
+     * @param callable $producer function(array<string, resource> $sinks): void
+     */
+    public static function writeAllWithSinks(
+        string $directory,
+        string $basename,
+        array $targets,
+        OverwritePolicyEnum $policy,
+        bool $atomicAll = true,
+        ?int $permissions = null,
+        bool $allowCreateDirs = true,
+        ?callable $producer = null,
+    ): void {
+        if ($basename === '' || $basename === '.' || $basename === '..' || str_contains($basename, '/') || str_contains($basename, '\\')) {
+            throw new CompressionException('Invalid basename: ' . $basename, 0, null, ['basename' => $basename]);
+        }
+        $dir = rtrim($directory, '/\\');
+        $realDir = self::prepareOutputDirectory($dir, $allowCreateDirs);
+
+        $sinks = [];
+        $tmps = [];
+        $finals = [];
+
+        try {
+            foreach ($targets as $spec) {
+                $algo = $spec['algo'];
+                $target = $realDir . DIRECTORY_SEPARATOR . $basename . '.' . $algo->getExtension();
+                $finals[$algo->value] = $target;
+
+                if (file_exists($target)) {
+                    if ($policy->isSkip()) {
+                        continue; // do not prepare tmp for skipped
+                    }
+
+                    if ($policy === OverwritePolicyEnum::Fail) {
+                        throw new CompressionException("Target already exists: {$target}", 0, null, ['path' => $target]);
+                    }
+                }
+
+                $tmp = $target . '.tmp.' . uniqid('', true);
+                $sink = fopen($tmp, 'w+b');
+
+                if ($sink === false) {
+                    throw new CompressionException('Failed to create temporary sink: ' . $tmp, 0, null, ['path' => $tmp]);
+                }
+                $tmps[$algo->value] = $tmp;
+                $sinks[$algo->value] = $sink;
+            }
+
+            if ($producer !== null) {
+                $producer($sinks);
+            }
+
+            // Close sinks and move files
+            foreach ($sinks as $algoValue => $sink) {
+                $target = $finals[$algoValue] ?? null;
+                $tmp = $tmps[$algoValue] ?? null;
+                fflush($sink);
+                $pos = ftell($sink);
+                fclose($sink);
+
+                if ($tmp !== null && (int)$pos === 0) {
+                    // Empty output -> remove tmp and skip publishing the file
+                    @unlink($tmp);
+                    unset($tmps[$algoValue]);
+
+                    continue;
+                }
+
+                if ($target === null || $tmp === null) {
+                    continue;
+                }
+
+                if (file_exists($target) && $policy->isReplace()) {
+                    @unlink($target);
+                }
+
+                if (!@rename($tmp, $target)) {
+                    throw new CompressionException('Failed to move temp file to target: ' . $target, 0, null, ['path' => $target]);
+                }
+
+                if (is_int($permissions)) {
+                    @chmod($target, $permissions);
+                }
+                unset($tmps[$algoValue]);
+            }
+        } catch (Throwable $e) {
+            // Cleanup
+            foreach ($sinks as $sink) {
+                if (is_resource($sink)) {
+                    @fclose($sink);
+                }
+            }
+
+            foreach ($tmps as $tmp) {
+                @unlink($tmp);
+            }
+
+            if ($atomicAll === true) {
+                foreach ($finals as $target) {
+                    if (file_exists($target)) {
+                        @unlink($target);
+                    }
+                }
+            }
+
+            throw $e;
         }
     }
 }

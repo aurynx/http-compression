@@ -130,6 +130,7 @@ it('does not fail when optional brotli is unavailable (tryBrotli) and writes req
     // Cleanup
     @unlink($gz);
     $br = $dir . DIRECTORY_SEPARATOR . $basename . '.br';
+
     if (file_exists($br)) {
         @unlink($br);
     }

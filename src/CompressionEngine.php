@@ -9,16 +9,17 @@ use Aurynx\HttpCompression\Compressors\BrotliCompressor;
 use Aurynx\HttpCompression\Compressors\GzipCompressor;
 use Aurynx\HttpCompression\Compressors\ZstdCompressor;
 use Aurynx\HttpCompression\Contracts\CompressorInterface;
+use Aurynx\HttpCompression\Contracts\SinkCompressorInterface;
 use Aurynx\HttpCompression\Contracts\StreamCompressorInterface;
 use Aurynx\HttpCompression\DTO\CompressionResultDto;
 use Aurynx\HttpCompression\Enums\AlgorithmEnum;
 use Aurynx\HttpCompression\Enums\ErrorCodeEnum;
 use Aurynx\HttpCompression\Enums\OutputModeEnum;
 use Aurynx\HttpCompression\Support\AttributeCache;
+use Aurynx\HttpCompression\Support\WritableStream;
 use Aurynx\HttpCompression\ValueObjects\CompressionInput;
 use Aurynx\HttpCompression\ValueObjects\ItemConfig;
 use Aurynx\HttpCompression\ValueObjects\OutputConfig;
-use ReflectionException;
 use Throwable;
 
 /**
@@ -126,6 +127,197 @@ final class CompressionEngine
     }
 
     /**
+     * Compress item and write outputs into provided sink streams.
+     *
+     * @param array<string, resource|WritableStream> $sinks Map of algo->value to writable streams
+     * @return CompressionResultDto Metrics-only result (compressed map is empty)
+     * @throws Throwable
+     */
+    public function compressItemToSinks(CompressionInput $input, ItemConfig $config, array $sinks): CompressionResultDto
+    {
+        $originalSize = $input->getSize();
+
+        if (!$this->isOutputModeAllowed($input, $this->outputConfig->mode)) {
+            $message = sprintf(
+                'Output mode %s is not supported for input type %s',
+                $this->outputConfig->mode->name,
+                get_class($input),
+            );
+
+            if ($this->failFast) {
+                throw new CompressionException($message, ErrorCodeEnum::UNSUPPORTED_OUTPUT_MODE->value);
+            }
+
+            return CompressionResultDto::failed($input->id, new CompressionException($message, ErrorCodeEnum::UNSUPPORTED_OUTPUT_MODE->value), $originalSize);
+        }
+
+        $this->outputConfig->validateMemoryLimit($originalSize); // no-op for Stream mode
+
+        $compressed = [];
+        $compressedSizes = [];
+        $compressionTimes = [];
+        $errors = [];
+
+        $inputData = $input->getData();
+
+        foreach ($config->algorithms->toArray() as [$algo, $level]) {
+            try {
+                $sinkRaw = $sinks[$algo->value] ?? null;
+                $sink = $sinkRaw instanceof WritableStream ? $sinkRaw->handle() : $sinkRaw;
+
+                if (!is_resource($sink)) {
+                    throw new CompressionException("Missing sink for {$algo->value}");
+                }
+
+                $compressor = $this->getCompressor($algo);
+                $startTime = microtime(true);
+
+                if ($compressor instanceof SinkCompressorInterface) {
+                    $compressor->compressToStream($inputData, $sink, $level);
+                } else {
+                    // Fallback: produce string and write to sink
+                    $data = $this->compressWithAlgorithm($input, $algo, $level);
+                    fwrite($sink, $data);
+                    fflush($sink);
+                }
+
+                $elapsedMs = (microtime(true) - $startTime) * 1000;
+                $compressionTimes[$algo->value] = $elapsedMs;
+
+                $pos = ftell($sink);
+                $compressedSizes[$algo->value] = is_int($pos) ? $pos : 0;
+            } catch (Throwable $e) {
+                $errors[$algo->value] = $e;
+
+                if ($this->failFast) {
+                    throw $e;
+                }
+            }
+        }
+
+        $success = empty($errors) && !empty($compressedSizes);
+
+        return new CompressionResultDto(
+            id: $input->id,
+            success: $success,
+            originalSize: $originalSize,
+            compressed: $compressed, // not storing data
+            compressedSizes: $compressedSizes,
+            compressionTimes: $compressionTimes,
+            errors: $errors,
+        );
+    }
+
+    /**
+     * Compress item and stream outputs into per-algorithm callbacks.
+     * Callback signature: function(string $chunk): void — may be called multiple times per algorithm.
+     *
+     * @param array<string, callable> $callbacks Map algo->value => consumer callback
+     * @return CompressionResultDto Metrics-only result (no in-memory payloads)
+     * @throws Throwable
+     */
+    public function compressItemToCallbacks(CompressionInput $input, ItemConfig $config, array $callbacks): CompressionResultDto
+    {
+        $originalSize = $input->getSize();
+
+        if (!$this->isOutputModeAllowed($input, $this->outputConfig->mode)) {
+            $message = sprintf(
+                'Output mode %s is not supported for input type %s',
+                $this->outputConfig->mode->name,
+                get_class($input),
+            );
+
+            if ($this->failFast) {
+                throw new CompressionException($message, ErrorCodeEnum::UNSUPPORTED_OUTPUT_MODE->value);
+            }
+
+            return CompressionResultDto::failed($input->id, new CompressionException($message, ErrorCodeEnum::UNSUPPORTED_OUTPUT_MODE->value), $originalSize);
+        }
+
+        // In stream mode memory limit validation is a no-op, but keep symmetry
+        $this->outputConfig->validateMemoryLimit($originalSize);
+
+        $compressed = [];
+        $compressedSizes = [];
+        $compressionTimes = [];
+        $errors = [];
+
+        $inputData = $input->getData();
+
+        foreach ($config->algorithms->toArray() as [$algo, $level]) {
+            try {
+                $consumer = $callbacks[$algo->value] ?? null;
+
+                if (!is_callable($consumer)) {
+                    throw new CompressionException("Missing callback for {$algo->value}");
+                }
+
+                $compressor = $this->getCompressor($algo);
+                $startTime = microtime(true);
+
+                // Compress into temporary sink first to leverage stream filters
+                $sink = fopen('php://temp', 'w+b');
+
+                if ($sink === false) {
+                    throw new CompressionException('Failed to create temporary sink');
+                }
+
+                try {
+                    if ($compressor instanceof SinkCompressorInterface) {
+                        $compressor->compressToStream($inputData, $sink, $level);
+                    } else {
+                        $data = $this->compressWithAlgorithm($input, $algo, $level);
+                        fwrite($sink, $data);
+                        fflush($sink);
+                    }
+
+                    // Report size (position) and stream chunks to consumer
+                    $pos = ftell($sink);
+                    $compressedSizes[$algo->value] = is_int($pos) ? $pos : 0;
+
+                    rewind($sink);
+
+                    while (!feof($sink)) {
+                        $chunk = fread($sink, 8192);
+
+                        if ($chunk === false) {
+                            break;
+                        }
+
+                        if ($chunk !== '') {
+                            $consumer($chunk);
+                        }
+                    }
+                } finally {
+                    fclose($sink);
+                }
+
+                $elapsedMs = (microtime(true) - $startTime) * 1000;
+                $compressionTimes[$algo->value] = $elapsedMs;
+
+            } catch (Throwable $e) {
+                $errors[$algo->value] = $e;
+
+                if ($this->failFast) {
+                    throw $e;
+                }
+            }
+        }
+
+        $success = empty($errors) && !empty($compressedSizes);
+
+        return new CompressionResultDto(
+            id: $input->id,
+            success: $success,
+            originalSize: $originalSize,
+            compressed: $compressed,
+            compressedSizes: $compressedSizes,
+            compressionTimes: $compressionTimes,
+            errors: $errors,
+        );
+    }
+
+    /**
      * Compress input with a specific algorithm
      * @return string Compressed data
      */
@@ -193,8 +385,6 @@ final class CompressionEngine
         ];
     }
 
-    /**
-     * Check if output mode is allowed for a given input type using OutputFormatAttribute
     /**
      * Check if output mode is allowed for a given input type using OutputFormatAttribute
      */

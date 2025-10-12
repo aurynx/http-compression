@@ -39,6 +39,7 @@ it('tryStreamAllTo() returns true when write succeeds and false otherwise', func
 
     // cleanup
     $gz = $dir . DIRECTORY_SEPARATOR . 'index.html.gz';
+
     if (file_exists($gz)) {
         @unlink($gz);
     }

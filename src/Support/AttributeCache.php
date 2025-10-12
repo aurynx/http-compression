@@ -99,6 +99,7 @@ final class AttributeCache
 
         if ($count === 0) {
             self::$cache[$key] = null;
+
             return null;
         }
 

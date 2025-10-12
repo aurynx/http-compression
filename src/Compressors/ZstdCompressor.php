@@ -6,11 +6,12 @@ namespace Aurynx\HttpCompression\Compressors;
 
 use Aurynx\HttpCompression\CompressionException;
 use Aurynx\HttpCompression\Contracts\CompressorInterface;
+use Aurynx\HttpCompression\Contracts\SinkCompressorInterface;
 use Aurynx\HttpCompression\Contracts\StreamCompressorInterface;
 use Aurynx\HttpCompression\Enums\AlgorithmEnum;
 use Aurynx\HttpCompression\Enums\ErrorCodeEnum;
 
-final class ZstdCompressor implements CompressorInterface, StreamCompressorInterface
+final class ZstdCompressor implements CompressorInterface, StreamCompressorInterface, SinkCompressorInterface
 {
     public function compress(string $content, ?int $level = null): string
     {
@@ -123,6 +124,32 @@ final class ZstdCompressor implements CompressorInterface, StreamCompressorInter
         }
 
         return $this->compress($content, $level);
+    }
+
+    public function compressToStream($input, $sink, ?int $level = null): void
+    {
+        if (!is_resource($sink)) {
+            throw new CompressionException('Sink must be a writable stream', ErrorCodeEnum::COMPRESSION_FAILED->value);
+        }
+
+        $content = null;
+
+        if (is_resource($input)) {
+            rewind($input);
+            $content = stream_get_contents($input);
+
+            if ($content === false) {
+                throw new CompressionException('Failed to read input stream', ErrorCodeEnum::COMPRESSION_FAILED->value);
+            }
+        } elseif (is_string($input)) {
+            $content = $input;
+        } else {
+            throw new CompressionException('Invalid input type for compressToStream');
+        }
+
+        $compressed = $this->compress($content, $level);
+        fwrite($sink, $compressed);
+        fflush($sink);
     }
 
     public function getAlgorithm(): AlgorithmEnum

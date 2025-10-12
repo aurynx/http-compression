@@ -6,11 +6,12 @@ namespace Aurynx\HttpCompression\Compressors;
 
 use Aurynx\HttpCompression\CompressionException;
 use Aurynx\HttpCompression\Contracts\CompressorInterface;
+use Aurynx\HttpCompression\Contracts\SinkCompressorInterface;
 use Aurynx\HttpCompression\Contracts\StreamCompressorInterface;
 use Aurynx\HttpCompression\Enums\AlgorithmEnum;
 use Aurynx\HttpCompression\Enums\ErrorCodeEnum;
 
-final class GzipCompressor implements CompressorInterface, StreamCompressorInterface
+final class GzipCompressor implements CompressorInterface, StreamCompressorInterface, SinkCompressorInterface
 {
     public function compress(string $content, ?int $level = null): string
     {
@@ -143,6 +144,60 @@ final class GzipCompressor implements CompressorInterface, StreamCompressorInter
         }
 
         return $compressed;
+    }
+
+    public function compressToStream($input, $sink, ?int $level = null): void
+    {
+        $algorithm = $this->getAlgorithm();
+
+        if (!$algorithm->isAvailable()) {
+            $ext = $algorithm->getRequiredExtension();
+
+            throw new CompressionException(
+                sprintf('%s extension not available; install/enable ext-%s', $ext, $ext),
+                ErrorCodeEnum::ALGORITHM_UNAVAILABLE->value,
+            );
+        }
+
+        if (!is_resource($sink)) {
+            throw new CompressionException('Sink must be a writable stream');
+        }
+
+        $level ??= $algorithm->getDefaultLevel();
+        $algorithm->validateLevel($level);
+
+        $filter = stream_filter_append(
+            $sink,
+            'zlib.deflate',
+            STREAM_FILTER_WRITE,
+            ['level' => $level, 'window' => 15 + 16],
+        );
+
+        if ($filter === false) {
+            throw new CompressionException('Failed to attach gzip filter', ErrorCodeEnum::COMPRESSION_FAILED->value);
+        }
+
+        if (is_resource($input)) {
+            rewind($input);
+
+            while (!feof($input)) {
+                $chunk = fread($input, 8192);
+
+                if ($chunk === false) {
+                    break;
+                }
+                fwrite($sink, $chunk);
+            }
+        } elseif (is_string($input)) {
+            fwrite($sink, $input);
+        } else {
+            stream_filter_remove($filter);
+
+            throw new CompressionException('Invalid input type for compressToStream');
+        }
+
+        stream_filter_remove($filter);
+        fflush($sink);
     }
 
     public function getAlgorithm(): AlgorithmEnum
