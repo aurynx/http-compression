@@ -57,8 +57,8 @@
         "ext-zlib": "*"
     },
     "require-dev": {
-        "friendsofphp/php-cs-fixer": "^3.91",
-        "pestphp/pest": "^4.1",
+        "friendsofphp/php-cs-fixer": "^3.92",
+        "pestphp/pest": "^4.2",
         "phpstan/phpstan": "^2.1"
     },
     "suggest": {
